@@ -1157,7 +1157,7 @@ class DVAE:
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run((self.prior_predictive, self.prior_predictive_probs))
 
-#debug
+#check if works by creating some samples
 #check support for rectangular images
 class DCVAE:
 
@@ -2073,7 +2073,8 @@ class resDCVAE:
 
 #class aeCNN: 
 
-#debug
+#check if works by creating some samples
+#check rectangular images support
 class DCGAN:
     
     def __init__(
@@ -2254,16 +2255,15 @@ class DCGAN:
 
             #building discriminator convolutional layers
             
-            for mo, filter_sz, stride, apply_batch_norm, act_f, w_init in d_sizes['conv_layers']:
+            for mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['conv_layers']:
                 
                 # make up a name - used for get_variable
                 name = "convlayer_%s" % count
                 count += 1
 
-                layer = ConvLayer(name, 
-                                  mi, mo, 
-                                  apply_batch_norm, 
+                layer = ConvLayer(name, mi, mo, 
                                   filter_sz, stride, 
+                                  apply_batch_norm, keep_prob,
                                   act_f, w_init)
 
                 self.d_convlayers.append(layer)
@@ -2276,21 +2276,23 @@ class DCGAN:
             #building discriminator dense layers
             
             self.d_dense_layers = []
-            for mo, apply_batch_norm, act_f, w_init in d_sizes['dense_layers']:
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
                 
                 name = 'd_dense_layer_%s' %count
                 count +=1
                 
-                layer = DenseLayer(name,
-                                  mi, mo,
-                                  apply_batch_norm, 
+                layer = DenseLayer(name, mi, mo,
+                                  apply_batch_norm, keep_prob,
                                   act_f, w_init)
                 mi = mo
                 self.d_dense_layers.append(layer)
             
             #final logistic layer
             name = 'd_dense_layer_%s' %count
-            self.d_final_layer = DenseLayer(name, mi, 1, False, lambda x: x)
+
+            self.d_final_layer = DenseLayer(name, mi, 1, 
+                                            False, 1, 
+                                            lambda x: x)
             
             return self.d_forward(X)
             
@@ -2346,21 +2348,21 @@ class DCGAN:
             self.g_dense_layers = []
             count = 0
 
-            for mo, apply_batch_norm, act_f, w_init in g_sizes['dense_layers']:
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
                 name = 'g_dense_layer_%s' %count
                 count += 1
                 
-                layer = DenseLayer(
-                    name,
-                    mi, mo, apply_batch_norm,
-                    f=act_f , w_init=w_init
-                )
+                layer = DenseLayer(name, mi, mo, 
+                                    apply_batch_norm, keep_prob,
+                                    f=act_f , w_init=w_init
+                                    )
+
                 self.g_dense_layers.append(layer)
                 mi = mo
 
             #deconvolutional layers
         
-            for _, _, stride, _, _, _ in reversed(g_sizes['conv_layers']):
+            for _, _, stride, _, _, _, _ in reversed(g_sizes['conv_layers']):
                 
                 dim_H = int(np.ceil(float(dim_H)/stride))
                 dim_W = int(np.ceil(float(dim_W)/stride))
@@ -2377,7 +2379,7 @@ class DCGAN:
             mo = g_sizes['projection']*dims_H[0]*dims_W[0]
         
             name = 'g_dense_layer_%s' %count
-            layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'])
+            layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
             self.g_dense_layers.append(layer)
             
             
@@ -2387,7 +2389,7 @@ class DCGAN:
             #num_relus = len(g_sizes['conv_layers']) - 1
             activation_functions = []
 
-            for _, _, _, _, act_f, _ in g_sizes['conv_layers'][:-1]:
+            for _, _, _, _, _, act_f, _, in g_sizes['conv_layers'][:-1]:
                 activation_functions.append(act_f)
 
             activation_functions.append(g_sizes['output_activation'])
@@ -2395,12 +2397,12 @@ class DCGAN:
             for i in range(len(g_sizes['conv_layers'])):
                 name = 'fs_convlayer_%s' %i
                 
-                mo, filter_sz, stride, apply_batch_norm, _, w_init = g_sizes['conv_layers'][i]
+                mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = g_sizes['conv_layers'][i]
                 f = activation_functions[i]
                 
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
-                  apply_batch_norm, filter_sz, stride, 
+                  filter_sz, stride, apply_batch_norm, keep_prob,
                   f, w_init
                 )
 
