@@ -2208,7 +2208,6 @@ class DCGAN:
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         self.d_train_op = tf.train.AdamOptimizer(
-        
             lr,
             beta1=beta1,
         
@@ -2580,8 +2579,8 @@ class DCGAN:
 class resDCGAN:
     
     def __init__(
-        self,
-        n_W, n_C,
+        self, 
+        n_W, n_H, n_C,
         d_sizes,g_sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
