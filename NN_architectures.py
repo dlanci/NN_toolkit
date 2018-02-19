@@ -2131,7 +2131,6 @@ class resDCVAE:
             #input channel number
             mi = d_sizes['projection']
             
-            activation_functions = []
 
             self.d_blocks=[]
 
@@ -2803,8 +2802,8 @@ class DCGAN:
 
         return one_sample 
 
-#add rectangular images support
-#add residual support
+
+
 #debug
 class resDCGAN:
     
@@ -2862,6 +2861,7 @@ class resDCGAN:
         """
 
         self.n_W = n_W
+        self.n_H = n_H
         self.n_C = n_C
         
         self.latent_dims = g_sizes['z']
@@ -2992,7 +2992,7 @@ class resDCGAN:
                                mi, d_sizes,
                                )
                 self.d_blocks.append(d_block)
-                mo, _, _, _, _, _, = d_sizes['convblock_layer_'+str(i)][-1]
+                mo, _, _, _, _, _, _, = d_sizes['convblock_layer_'+str(i)][-1]
                 mi = mo
                 dim_H=d_block.output_dim(dim_H)
                 dim_W=d_block.output_dim(dim_W)
@@ -3003,14 +3003,13 @@ class resDCGAN:
             #build dense layers
             
             self.d_dense_layers = []
-            for mo, apply_batch_norm, act_f, w_init in d_sizes['dense_layers']:
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
                 
                 name = 'd_dense_layer_%s' %count
                 count +=1
                 
-                layer = DenseLayer(name,
-                                  mi, mo,
-                                  apply_batch_norm, 
+                layer = DenseLayer(name,mi, mo,
+                                  apply_batch_norm, keep_prob, 
                                   act_f, w_init)
                 mi = mo
                 self.d_dense_layers.append(layer)
@@ -3018,7 +3017,7 @@ class resDCGAN:
             #final logistic layer
             name = 'd_dense_layer_%s' %count
 
-            self.d_final_layer = DenseLayer(name, mi, 1, False, lambda x: x)
+            self.d_final_layer = DenseLayer(name, mi, 1, False, 1, lambda x: x)
             self.n_conv_blocks=n_conv_blocks
             return self.d_forward(X)
             
@@ -3075,14 +3074,15 @@ class resDCGAN:
             self.g_dense_layers = []
             count = 0
 
-            for mo, apply_batch_norm, act_f, w_init in g_sizes['dense_layers']:
+            mi = self.latent_dims
+
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
                 name = 'g_dense_layer_%s' %count
                 count += 1
                 
                 layer = DenseLayer(
-                    name,
-                    mi, mo,
-                    apply_batch_norm, 
+                    name, mi, mo,
+                    apply_batch_norm, keep_prob,
                     f=act_f, w_init=w_init
                 )
                 self.g_dense_layers.append(layer)
@@ -3107,32 +3107,34 @@ class resDCGAN:
             self.g_dims_W = dims_W
             
             #final dense layer
-            mo = g_sizes['projection']*g_dims_H[0]*g_dims_W[0]
+            mo = g_sizes['projection']*dims_H[0]*dims_W[0]
             
             name = 'g_dense_layer_%s' %count
-            layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'])
+            layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
             self.g_dense_layers.append(layer)
-            
+
+            self.g_blocks=[]
+
             #input channel number
             mi = g_sizes['projection']
 
-            self.g_blocks=[]
-            
+            output_sizes={}
+            for i in range(self.n_conv_blocks):
+                
+                output_sizes[i]=[ [dims_W[j] ,dims_H[j]]  for j in range(1, len(g_sizes['deconvblock_layer_'+str(i)])+1)]            
+                    
 
-
-            for i in range(n_conv_blocks//2):
+            for i in range(self.n_conv_blocks):
             
                 name = 'g_block_layer_%s' %i
-            
-                #f = activation_functions[i]
                 g_block = DeconvBlock(i, 
                                       mi,
-                                      dims[i+1:i+1+len(g_sizes['deconvblock_layer_'+str(i)])], 
+                                      output_sizes, 
                                       g_sizes, 
                 )
             
                 self.g_blocks.append(g_block)
-                mo, _, _, _, _, _, = g_sizes['deconvblock_layer_'+str(i)][-1]
+                mo, _, _, _, _, _, _, = g_sizes['deconvblock_layer_'+str(i)][-1]
                 mi = mo
                     
             self.g_sizes=g_sizes
@@ -3157,7 +3159,7 @@ class resDCGAN:
         output = tf.reshape(
             output,
             
-            [-1, self.g_dims[0], self.g_dims[0], self.g_sizes['projection']]
+            [-1, self.g_dims_W[0], self.g_dims_H[0], self.g_sizes['projection']]
         
         )
 
@@ -3207,29 +3209,32 @@ class resDCGAN:
             layer.set_session(session)
     
     def fit(self, X):
-        
+
+        SEED = 1
         d_costs = []
         g_costs = []
 
         N = len(X)
         n_batches = N // self.batch_size
-        
+    
+        total_iters=0
+
         print('\n ****** \n')
-        print('Training resDCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('Training residual DCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
         print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
 
-        total_iters=0
-        
-        for i in range(self.epochs):
+        for epoch in range(self.epochs):
+
+            SEED +=1
+
+            print('Epoch:', epoch)
             
-            print('Epoch:', i)
-            np.random.shuffle(X)
-            
-            for j in range(n_batches):
+            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+
+            for X_batch in batches:
                 
                 t0 = datetime.now()
-                X_batch = X[j*self.batch_size:(j+1)*self.batch_size]
                 
                 Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
                 
@@ -3257,25 +3262,26 @@ class resDCGAN:
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
-                    print("  batch: %d/%d  -  dt: %s - d_acc: %.2f" % (j+1, n_batches, datetime.now() - t0, d_acc))
+                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
                     Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
                     
                     samples = self.sample(Z)#shape is (64,D,D,color)
                     
-                    d = self.n_W
-                    samples = samples.reshape(self.batch_size, d, d)
+                    w = self.n_W
+                    h = self.n_H
+                    samples = samples.reshape(self.batch_size, h, w)
                     
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
-                        plt.imshow(samples[i].reshape(d,d), cmap='gray')
+                        plt.imshow(samples[i].reshape(h,w), cmap='gray')
                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
                         plt.axis('off')
                     
                     fig = plt.gcf()
-                    fig.set_size_inches(5, 5)
+                    fig.set_size_inches(5,7)
                     plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
 
 
