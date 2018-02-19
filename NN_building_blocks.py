@@ -147,11 +147,11 @@ class DenseLayer(object):
         return self.f(output)
 
     def forwardT(self, X, reuse, is_training):
-
-        Z=tf.matmul(X,tf.transpose(self.W))+self.bo
-
+        
         if not is_training:
             self.keep_prob=1
+
+        Z=tf.matmul(X,tf.transpose(self.W))+self.bo
 
         if self.apply_batch_norm:
             Z=tf.contrib.layers.batch_norm(
@@ -164,7 +164,9 @@ class DenseLayer(object):
                 reuse=reuse,
                 scope = self.name,
             )
-        return tf.nn.dropout(self.f(Z), self.keep_prob)
+        
+        output = tf.nn.dropout(Z, self.keep_prob)
+        return self.f(output)
 
     def set_session(self, session):
         
@@ -300,7 +302,7 @@ class DeconvLayer(object):
                 mi, mo, output_shape, 
                 filter_sz, stride, 
                 apply_batch_norm, keep_prob,
-                f=tf.nn.relu,w_init = tf.random_normal_initializer(stddev=0.02)
+                f=tf.nn.relu, w_init = tf.random_normal_initializer(stddev=0.02)
                 ):
 
                 #using resize + conv2d and not conv2dt
@@ -335,6 +337,7 @@ class DeconvLayer(object):
                 self.output_shape = output_shape
                 self.apply_batch_norm = apply_batch_norm
                 self.keep_prob = keep_prob
+                
         
     def forward(self, X, reuse, is_training):
 
@@ -511,7 +514,7 @@ class DeconvBlock(object):
     
     def __init__(self,
                 block_id,
-                mi, output_shapes, 
+                mi, output_sizes, 
                 sizes):
      
                 #self.f=f
@@ -528,9 +531,8 @@ class DeconvBlock(object):
                     
                     mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = sizes['deconvblock_layer_'+str(block_id)][i]
                     name = 'deconvblock_{0}_layer_{1}'.format(block_id, i)
-                    
-                    layer = DeconvLayer(name,
-                                        mi, mo, output_shapes[i],
+
+                    layer = DeconvLayer(name,mi, mo, output_sizes[block_id][i],
                                         filter_sz, stride, 
                                         apply_batch_norm, keep_prob,
                                         act_f, w_init)
@@ -541,10 +543,10 @@ class DeconvBlock(object):
                 i+=1
                 name = 'deconvblock_{0}_layer_{1}'.format(block_id, i)
                 mo, filter_sz, stride, apply_batch_norm, keep_prob, self.fin_act, w_init = sizes['deconvblock_layer_' +str(block_id)][-1]
-            
-                layer = DeconvLayer(name,
-                                    mi, mo, filter_sz, stride,
-                                    output_shapes[len(output_shapes)-1],
+                
+
+                layer = DeconvLayer(name, mi, mo, output_sizes[block_id][len(output_sizes[block_id])-1],
+                                    filter_sz, stride,
                                     apply_batch_norm, keep_prob,
                                     lambda x: x, w_init)
             
@@ -554,12 +556,11 @@ class DeconvBlock(object):
                 mo, filter_sz, stride, apply_batch_norm, keep_prob, w_init = sizes['deconvblock_shortcut_layer_'+str(block_id)][0]
                 name = 'deconvshortcut_layer_{0}'.format(block_id)
                 
-                self.shortcut_layer = DeconvLayer(name,
-                                           init_mi, mo, filter_sz,stride,
-                                           output_shapes[len(output_shapes)-1],
+                self.shortcut_layer = DeconvLayer(name, init_mi, mo, output_sizes[block_id][len(output_sizes[block_id])-1],
+                                           filter_sz,stride,
                                            apply_batch_norm, keep_prob,
                                            f=lambda x: x, w_init=w_init)
-        
+
     def set_session(self, session):
         
         self.session = session
@@ -603,3 +604,12 @@ class DeconvBlock(object):
             output = output + shortcut_output
         
         return self.fin_act(output)
+
+
+    def output_dim(self, input_dim):
+        
+        dim = input_dim
+        for _, _, stride, _, _, _, _, in self.sizes['deconvblock_layer_'+str(self.block_id)]:
+            dim = int(np.ceil(float(dim)/stride))
+  
+        return dim

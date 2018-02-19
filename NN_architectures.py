@@ -31,9 +31,230 @@ SEED = 1
 
 #NETWORK ARCHITECTURES
 
-#class DNN:
+#classification models
 
-#check if it works with metric function
+class DNN:
+
+    def __init__(self,
+        dim, sizes,
+        lr=LEARNING_RATE, beta1=BETA1,
+        batch_size=BATCH_SIZE, epochs=EPOCHS,
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH):
+
+        """
+        
+        Positional arguments
+
+
+
+        Keyword arguments
+
+
+        """
+
+        self.n_classes = sizes['n_classes']
+        self.dim = dim
+
+        self.sizes=sizes
+
+
+        self.X = tf.placeholder(
+            tf.float32,
+            shape=(None, dim),
+            name = 'X_data'
+            )
+
+        self.X_input = tf.placeholder(
+            tf.float32,
+            shape=(None, dim),
+            name = 'X_input'
+            )
+
+        self.batch_sz=tf.placeholder(
+            tf.int32,
+            shape=(),
+            name='batch_sz',
+            )
+
+        self.Y = tf.placeholder(
+            tf.float32,
+            shape=(None, self.n_classes),
+            name='Y'
+        )
+
+        self.Y_hat = self.build_NN(self.X, self.conv_sizes)
+
+
+        cost = tf.nn.softmax_cross_entropy_with_logits(
+                logits= self.Y_hat,
+                labels= self.Y
+            )
+
+        self.loss = tf.reduce_mean(cost)
+
+        self.train_op = tf.train.AdamOptimizer(
+            learning_rate=lr,
+            beta1=beta1
+            ).minimize(self.loss
+            )
+
+
+
+        #convolve from input
+        with tf.variable_scope('classification') as scope:
+            scope.reuse_variables()
+            self.Y_hat_from_test = self.convolve(
+                self.X_input, reuse=True, is_training=False, keep_prob=1
+            )
+
+        self.accuracy = evaluation(self.Y_hat_from_test, self.Y)
+
+        #saving for later
+        self.lr = lr
+        self.batch_size=batch_size
+        self.epochs = epochs
+        self.path = path
+        self.save_sample = save_sample
+
+    def build_NN(self, X, sizes):
+
+        with tf.variable_scope('classification') as scope:
+
+            mi = self.dim
+            self.dense_layers = []
+            count = 0
+
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in sizes['dense_layers']:
+
+                name = 'dense_layer_{0}'.format(count)
+                count += 1
+
+                layer = DenseLayer(name,mi, mo,
+                                  apply_batch_norm, keep_prob,
+                                  act_f, w_init)
+                mi = mo
+                self.dense_layers.append(layer)
+
+            #readout layer
+            readout_layer =  DenseLayer('readout_layer', 
+                                        mi, self.n_classes,
+                                        False, 1, tf.nn.softmax, 
+                                        tf.random_uniform_initializer())
+
+            self.dense_layers.append(readout_layer)
+
+            return self.propagate(X)
+
+    def propagate(self, X, reuse=None, is_training=True):
+
+        print('Propagation')
+        print('Input for propagation', X.get_shape())
+
+        output = X
+
+        for layer in self.dense_layers:
+            output.layer.forward(output, reuse, is_training)
+
+        print('Logits shape', output.get_shape())
+        return output
+
+    def set_session(self, session):
+
+        for layer in self.dense_layers:
+
+            layer.set_session(session)
+
+    def fit(self, X_train, Y_train, X_test, Y_test):
+
+        SEED = 1
+
+        N = X_train.shape[0]
+        test_size = X_test.shape[0]
+
+        n_batches = N // self.batch_size
+
+        print('\n ****** \n')
+        print('Training CNN for '+str(self.epochs)+' epochs with a total of ' +str(N)+ ' samples\ndistributed in ' +str(n_batches)+ ' batches of size '+str(self.batch_size)+'\n')
+        print('The learning rate set is '+str(self.lr))
+        print('\n ****** \n')
+
+        costs = []
+        for epoch in range(self.epochs):
+
+            SEED = SEED + 1
+
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            
+            for train_batch in train_batches:
+
+                (X_train, Y_train) = train_batch
+
+                feed_dict = {
+
+                            self.X: X_train,
+                            self.Y: Y_train,
+                            self.batch_sz: self.batch_size,
+                            
+                            }
+
+                _, c = self.session.run(
+                            (self.train_op, self.loss),
+                            feed_dict=feed_dict
+                    )
+
+                train_acc = self.session.run(
+                    self.accuracy, feed_dict={self.X_input:X_train, self.Y:Y_train}
+
+                    )
+
+
+                c /= self.batch_size
+                costs.append(c)
+
+            #model evaluation
+            if epoch % self.save_sample ==0:
+
+                for test_batch in test_batches:
+
+                    (X_test_batch, Y_test_batch) = test_batch
+
+
+                    feed_dict={        
+                                self.X_input: X_test_batch,
+                                self.Y: Y_test_batch,
+
+                                }
+
+                    test_acc = self.session.run(
+                            self.accuracy,
+                            feed_dict=feed_dict
+                                   
+                        )
+                    
+                print('Evaluating performance on train/test sets')
+                print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
+                print('test accuracy {0:.4g}'.format(test_acc))
+          
+
+        plt.plot(costs)
+        plt.ylabel('cost')
+        plt.xlabel('iteration')
+        plt.title('learning rate=' + str(self.lr))
+        plt.show()
+        
+        print('Parameters trained')
+
+        #get samples at test time
+    
+    def predicted_Y_hat(self, X):
+        pred = tf.nn.softmax(self.Y_hat_from_test)
+        output = self.session.run(
+            pred, 
+            feed_dict={self.X_input:X}
+            )
+        return output
+
 class CNN:
     
     def __init__(
@@ -61,20 +282,20 @@ class CNN:
 
         self.conv_sizes = sizes
 
-        self.keep_prob = tf.placeholder(
-            tf.float32
-            )
+        # self.keep_prob = tf.placeholder(
+        #     tf.float32
+        #     )
         
         self.X = tf.placeholder(
             tf.float32,
             shape=(None, n_W, n_H, n_C),
-            name = 'X'
+            name = 'X_data'
             )
 
         self.X_input = tf.placeholder(
             tf.float32,
             shape=(None, n_W, n_H, n_C),
-            name = 'X'
+            name = 'X_input'
             )
 
         self.batch_sz=tf.placeholder(
@@ -91,6 +312,10 @@ class CNN:
 
         self.Y_hat = self.build_CNN(self.X, self.conv_sizes)
 
+        #add regularization
+        #reg = 0
+
+
         cost = tf.nn.softmax_cross_entropy_with_logits(
                 logits= self.Y_hat,
                 labels= self.Y
@@ -99,16 +324,12 @@ class CNN:
         self.loss = tf.reduce_mean(cost)
 
         self.train_op = tf.train.AdamOptimizer(
-            lr,
+            learning_rate=lr,
             beta1=beta1
             ).minimize(self.loss
             )
 
-        self.X_input = tf.placeholder(
-            tf.float32,
-            shape = (None, n_W, n_H, n_C),
-            name='X_input'
-        )
+
 
         #convolve from input
         with tf.variable_scope('convolutional') as scope:
@@ -117,11 +338,14 @@ class CNN:
                 self.X_input, reuse=True, is_training=False, keep_prob=1
             )
 
+        self.accuracy = evaluation(self.Y_hat_from_test, self.Y)
+
         #saving for later
         self.lr = lr
         self.batch_size=batch_size
         self.epochs = epochs
         self.path = path
+        self.save_sample = save_sample
 
     def build_CNN(self, X, conv_sizes):
 
@@ -148,7 +372,8 @@ class CNN:
                 else:
                     print('Check network architecture')
                 break
-            
+
+            #convolutional layers
             for key in conv_sizes:
                 if 'conv' in key:
 
@@ -191,6 +416,7 @@ class CNN:
                     
                     self.conv_layers.append(layer)
 
+            #dense layers
             mi = mi * dim_W * dim_H
             self.dense_layers = []
             for mo, apply_batch_norm, keep_prob, act_f, w_init in conv_sizes['dense_layers']:
@@ -204,7 +430,7 @@ class CNN:
                 mi = mo
                 self.dense_layers.append(layer)
 
-
+            #readout layer
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
@@ -224,20 +450,20 @@ class CNN:
         for layer in self.conv_layers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            print('After convolution', i)
-            print(output.get_shape())
+            #print('After convolution', i)
+            #print(output.get_shape())
             
 
-        print('After convolution shape', output.get_shape())
+        #print('After convolution shape', output.get_shape())
 
         output = tf.contrib.layers.flatten(output)
 
-        print('After flatten shape', output.get_shape())
+        #print('After flatten shape', output.get_shape())
         for layer in self.dense_layers:
 
             i+=1
             output = layer.forward(output, reuse, is_training)
-            print('After dense layer {0}, shape {1}'.format(i, output.get_shape()))
+            #print('After dense layer {0}, shape {1}'.format(i, output.get_shape()))
 
         print('Logits shape', output.get_shape())
         return output
@@ -249,15 +475,17 @@ class CNN:
         for layer in self.conv_layers:
             layer.set_session(session)
 
-    def fit(self, X, Y):
+    def fit(self, X_train, Y_train, X_test, Y_test):
 
         SEED = 1
 
-        N = X.shape[0]
+        N = X_train.shape[0]
+        test_size = X_test.shape[0]
+
         n_batches = N // self.batch_size
 
         print('\n ****** \n')
-        print('Training CNN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('Training CNN for '+str(self.epochs)+' epochs with a total of ' +str(N)+ ' samples\ndistributed in ' +str(n_batches)+ ' batches of size '+str(self.batch_size)+'\n')
         print('The learning rate set is '+str(self.lr))
         print('\n ****** \n')
 
@@ -266,16 +494,17 @@ class CNN:
 
             SEED = SEED + 1
 
-            batches = supervised_random_mini_batches(X, Y, self.batch_size, SEED)
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            
+            for train_batch in train_batches:
 
-            for batch in batches:
-
-                (X_batch, Y_batch) = batch
+                (X_train, Y_train) = train_batch
 
                 feed_dict = {
 
-                            self.X: X_batch,
-                            self.Y: Y_batch,
+                            self.X: X_train,
+                            self.Y: Y_train,
                             self.batch_sz: self.batch_size,
                             
                             }
@@ -285,14 +514,39 @@ class CNN:
                             feed_dict=feed_dict
                     )
 
+                train_acc = self.session.run(
+                    self.accuracy, feed_dict={self.X_input:X_train, self.Y:Y_train}
+
+                    )
+
+
                 c /= self.batch_size
                 costs.append(c)
 
-            if epoch % 10 ==0:
+            #model evaluation
+            if epoch % self.save_sample ==0:
 
-                #define a metric/accuracy
+                for test_batch in test_batches:
 
-                print('At epoch %d, cost: %f' %(epoch, c))
+                    (X_test_batch, Y_test_batch) = test_batch
+
+
+                    feed_dict={        
+                                self.X_input: X_test_batch,
+                                self.Y: Y_test_batch,
+
+                                }
+
+                    test_acc = self.session.run(
+                            self.accuracy,
+                            feed_dict=feed_dict
+                                   
+                        )
+                    
+                print('Evaluating performance on train/test sets')
+                print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
+                print('test accuracy {0:.4g}'.format(test_acc))
+          
 
         plt.plot(costs)
         plt.ylabel('cost')
@@ -305,12 +559,13 @@ class CNN:
         #get samples at test time
     
     def predicted_Y_hat(self, X):
-        return self.session.run(
-            self.rec_sample,
+        pred = tf.nn.softmax(self.Y_hat_from_test)
+        output = self.session.run(
+            pred, 
             feed_dict={self.X_input:X}
-        )
+            )
+        return output
 
-#check if it works with metric function
 class resCNN:
     
     def __init__(
@@ -374,16 +629,10 @@ class resCNN:
         self.loss = tf.reduce_mean(cost)
 
         self.train_op = tf.train.AdamOptimizer(
-            lr,
+            learning_rate=lr,
             beta1=beta1
             ).minimize(self.loss
             )
-
-        self.X_input = tf.placeholder(
-            tf.float32,
-            shape = (None, n_W, n_H, n_C),
-            name='X_input'
-        )
 
         #convolve from input
         with tf.variable_scope('convolutional') as scope:
@@ -392,11 +641,14 @@ class resCNN:
                 self.X_input, reuse=True, is_training=False,
             )
 
+        self.accuracy = evaluation(self.Y_hat_from_test, self.Y)
+
         #saving for later
         self.lr = lr
         self.batch_size=batch_size
         self.epochs = epochs
         self.path = path
+        self.save_sample = save_sample
 
     def build_resCNN(self, X, conv_sizes):
         
@@ -471,7 +723,7 @@ class resCNN:
             self.dense_layers = []
 
             for mo, apply_batch_norm, keep_prob, act_f, w_init in conv_sizes['dense_layers']:
-                print(mi,mo)
+
                 name = 'dense_layer_{0}'.format(count)
                 count += 1
 
@@ -501,27 +753,27 @@ class resCNN:
         i=0
         for block in self.conv_blocks:
             i+=1
-            print('Convolution_block_%i' %i)
-            print('Input shape', output.get_shape())
+            # print('Convolution_block_%i' %i)
+            # print('Input shape', output.get_shape())
             output = block.forward(output,
                                      reuse,
                                      is_training)
         
         
         output = tf.contrib.layers.flatten(output)
-        print('After flatten shape', output.get_shape())
+        # print('After flatten shape', output.get_shape())
 
         i=0
         for layer in self.dense_layers:
             i+=1
-            print('Dense weights %i' %i)
+            # print('Dense weights %i' %i)
             print(layer.W.get_shape())
             output = layer.forward(output,
                                    reuse,
                                    is_training)
 
-            print('After dense layer_%i' %i)
-            print('Shape', output.get_shape())
+            # print('After dense layer_%i' %i)
+            # print('Shape', output.get_shape())
 
         print('Logits shape', output.get_shape())
         return output
@@ -533,15 +785,17 @@ class resCNN:
         for layer in self.conv_blocks:
             layer.set_session(session)
 
-    def fit(self, X, Y):
+    def fit(self, X_train, Y_train, X_test, Y_test):
 
         SEED = 1
 
-        N = X.shape[0]
+        N = X_train.shape[0]
+        test_size = X_test.shape[0]
+
         n_batches = N // self.batch_size
 
         print('\n ****** \n')
-        print('Training CNN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('Training residual CNN for '+str(self.epochs)+' epochs with a total of ' +str(N)+ ' samples\ndistributed in ' +str(n_batches)+ ' batches of size '+str(self.batch_size)+'\n')
         print('The learning rate set is '+str(self.lr))
         print('\n ****** \n')
 
@@ -550,16 +804,17 @@ class resCNN:
 
             SEED = SEED + 1
 
-            batches = supervised_random_mini_batches(X, Y, self.batch_size, SEED)
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            
+            for train_batch in train_batches:
 
-            for batch in batches:
-
-                (X_batch, Y_batch) = batch
+                (X_train, Y_train) = train_batch
 
                 feed_dict = {
 
-                            self.X: X_batch,
-                            self.Y: Y_batch,
+                            self.X: X_train,
+                            self.Y: Y_train,
                             self.batch_sz: self.batch_size,
                             
                             }
@@ -569,14 +824,39 @@ class resCNN:
                             feed_dict=feed_dict
                     )
 
+                train_acc = self.session.run(
+                    self.accuracy, feed_dict={self.X_input:X_train, self.Y:Y_train}
+
+                    )
+
+
                 c /= self.batch_size
                 costs.append(c)
 
-            if epoch % 10 ==0:
+            #model evaluation
+            if epoch % self.save_sample ==0:
 
-                #define a metric/accuracy
+                for test_batch in test_batches:
 
-                print('At epoch %d, cost: %f' %(epoch, c))
+                    (X_test_batch, Y_test_batch) = test_batch
+
+
+                    feed_dict={        
+                                self.X_input: X_test_batch,
+                                self.Y: Y_test_batch,
+
+                                }
+
+                    test_acc = self.session.run(
+                            self.accuracy,
+                            feed_dict=feed_dict
+                                   
+                        )
+                    
+                print('Evaluating performance on train/test sets')
+                print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
+                print('test accuracy {0:.4g}'.format(test_acc))
+          
 
         plt.plot(costs)
         plt.ylabel('cost')
@@ -589,12 +869,15 @@ class resCNN:
         #get samples at test time
     
     def predicted_Y_hat(self, X):
-        return self.session.run(
-            self.rec_sample,
+        pred = tf.nn.softmax(self.Y_hat_from_test)
+        output = self.session.run(
+            pred, 
             feed_dict={self.X_input:X}
-        )
+            )
+        return output
 
-#check if works by creating some samples
+#generative models
+
 class DAE:
 
     def __init__(
@@ -646,7 +929,7 @@ class DAE:
         self.loss= tf.reduce_sum(cost) #mean?           
 
         self.train_op = tf.train.AdamOptimizer(
-            lr,
+            learning_rate=lr,
             beta1=beta1
             ).minimize(self.loss)
 
@@ -721,7 +1004,7 @@ class DAE:
             Z=layer.forward(Z, reuse, is_training)
         return Z
 
-    def build_decoder(self, Z, sizes):
+    def build_decoder(self, Z, d_sizes):
 
         with tf.variable_scope('decoder') as scope:
 
@@ -729,7 +1012,7 @@ class DAE:
 
             self.d_layers = []
             count = 0
-            for mo, apply_batch_norm, keep_prob, act_f, w_init in self.d_sizes['dense_layers']:
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
 
                 name = 'layer_{0}'.format(count)
                 count += 1
@@ -760,6 +1043,8 @@ class DAE:
         for layer in self.d_layers:
              X = layer.forward(X, reuse, is_training)
         return X
+
+    # def get_logits(self, X):
 
     def set_session(self, session):
 
@@ -808,7 +1093,7 @@ class DAE:
                 c /= self.batch_size
                 costs.append(c)
 
-            if epoch % self.save_sample ==0:
+            if epoch % self.save_sample == 0:
 
 
                 print('At epoch %d, cost: %f' %(epoch, c))
@@ -826,7 +1111,6 @@ class DAE:
             self.X_decoded, feed_dict={self.X_input:X, self.batch_sz:1}
             )
 
-#check if works by creating some samples
 class DVAE:
 
     def __init__(
@@ -840,7 +1124,6 @@ class DVAE:
 
 
         Keyword args
-
 
         """
         self.dim = dim
@@ -882,11 +1165,13 @@ class DVAE:
             sample_logits = self.decode(
                 self.Z_dist, reuse=True, is_training=False,
             )
-            
+        
+
         self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
         self.posterior_predictive = self.posterior_predictive_dist.sample()
         self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
-        
+
+
         #prior predictive from prob
 
         standard_normal = Normal(
@@ -895,6 +1180,7 @@ class DVAE:
         )
 
         Z_std = standard_normal.sample(1)
+
         with tf.variable_scope('decoder') as scope:
             scope.reuse_variables()
             logits_from_prob = self.decode(
@@ -906,7 +1192,7 @@ class DVAE:
         self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
 
 
-        # prior predictive from input
+        # prior predictive from input 
 
         self.Z_input = tf.placeholder(tf.float32, shape=(None, self.latent_dims))
         
@@ -934,13 +1220,12 @@ class DVAE:
               1
         )
         
-        self.elbo = tf.reduce_sum(expected_log_likelihood - kl)
+        self.loss = tf.reduce_sum(expected_log_likelihood - kl)
         
         self.train_op = tf.train.AdamOptimizer(
             learning_rate=lr,
             beta1=beta1,
-        ).minimize(-self.elbo)          
-
+        ).minimize(-self.loss)          
 
         #test time
 
@@ -1076,15 +1361,18 @@ class DVAE:
         N = len(X)
         n_batches = N // self.batch_size
 
-        total_iters=0
+        
 
         print('\n ****** \n')
         print('Training deep VAE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' iterations a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
-
+        total_iters=0
 
         for epoch in range(self.epochs):
+            
+            t0 = datetime.now()
+            print('Epoch: {0}'.format(epoch))
 
             SEED = SEED + 1
 
@@ -1097,51 +1385,39 @@ class DVAE:
                             }
 
                 _, c = self.session.run(
-                            (self.train_op, self.elbo),
+                            (self.train_op, self.loss),
                             feed_dict=feed_dict
                     )
 
                 c /= self.batch_size
-
                 costs.append(c)
 
-            total_iters +=1
+                total_iters += 1
 
-            if total_iters % self.save_sample ==0:
+                if total_iters % self.save_sample ==0:
+                    print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
+                    print('Saving a sample...')
+                        
+                    probs = [self.prior_predictive_sample_with_probs()  for i in range(64)]  
+                    
+                    for i in range(64):
+                        plt.subplot(8,8,i+1)
+                        plt.imshow(probs[i].reshape(28,28), cmap='gray')
+                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                        plt.axis('off')
+                        
+                    fig = plt.gcf()
+                    fig.set_size_inches(4,4)
+                    plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
 
-                print('At epoch %d, cost: %f' %(epoch, c))
-
-                #         print("on iter {0}, cost: {0}".format(total_iters, c))
-                #         print('Saving a sample...')
-                        
-                #         n = 8
-                        
-                #         samples = sample(Z, n*n)
-                        
-                #         for i in range(64):
-                #             plt.subplot(8,8,i+1)
-                #             plt.imshow(samples[i].reshape(d,d), cmap='gray')
-                #             plt.subplots_adjust(wspace=0.2,hspace=0.2)
-                #             plt.axis('off')
-                        
-                #         fig = plt.gcf()
-                #         fig.set_size_inches(5, 5)
-                #         plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
-
+        plt.clf()
         plt.plot(costs)
         plt.ylabel('cost')
         plt.xlabel('iteration')
-        plt.title('Learning rate=' + str(self.lr))
+        plt.title('learning rate=' + str(self.lr))
         plt.show()
         
         print('Parameters trained')
-
-    def sample(self, Z, n):
-        samples = self.session.run(
-          self.prior_predictive_from_input_probs,
-          feed_dict={self.Z_input: Z, self.batch_sz: n}
-        )
-        return samples
 
     def prior_predictive_with_input(self, Z):
         return self.session.run(
@@ -1155,7 +1431,7 @@ class DVAE:
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
-        return self.session.run((self.prior_predictive, self.prior_predictive_probs))
+        return self.session.run(self.prior_predictive_probs)
 
 #check if works by creating some samples
 #check support for rectangular images
@@ -1177,7 +1453,6 @@ class DCVAE:
         self.d_sizes = d_sizes
         self.latent_dims = e_sizes['z']
 
-        
         self.X = tf.placeholder(
             tf.float32,
             shape=(None, n_W, n_H, n_C),
@@ -1199,7 +1474,6 @@ class DCVAE:
         #builds X_hat distribution from decoder output
         self.X_hat_distribution = Bernoulli(logits=logits)
         
-        
         #posterior predictive
         
         with tf.variable_scope('encoder') as scope:
@@ -1207,8 +1481,7 @@ class DCVAE:
             self.Z_dist = self.encode(
                 self.X, reuse=True, is_training=False,
             )#self.X or something on purpose?
-
-                                                   
+                                 
         with tf.variable_scope('decoder') as scope:
             scope.reuse_variables()
             sample_logits = self.decode(
@@ -1237,7 +1510,6 @@ class DCVAE:
         prior_predictive_dist = Bernoulli(logits=logits_from_prob)
         self.prior_predictive = prior_predictive_dist.sample()
         self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
-
 
         # prior predictive from input
 
@@ -1268,11 +1540,11 @@ class DCVAE:
               1
         )
         
-        self.elbo = tf.reduce_sum(expected_log_likelihood - kl)
+        self.loss = tf.reduce_sum(expected_log_likelihood - kl)
         self.train_op = tf.train.AdamOptimizer(
-            learning_rate=LEARNING_RATE,
-            beta1=BETA1,
-        ).minimize(-self.elbo)
+            learning_rate=lr,
+            beta1=beta1,
+        ).minimize(-self.loss)
 
         #saving for later
         self.lr = lr
@@ -1380,7 +1652,7 @@ class DCVAE:
             
             dims_H = list(reversed(dims_H))
             dims_W = list(reversed(dims_W))
-            #print('Decoder dims:', dims)
+            
             self.d_dims_H = dims_H
             self.d_dims_W = dims_W
             
@@ -1400,7 +1672,6 @@ class DCVAE:
                 mi = mo
                 
             mo = d_sizes['projection']*dims_W[0]*dims_H[0]
-
 
             #final dense layer
             name = 'dec_layer_%s' %count
@@ -1493,14 +1764,18 @@ class DCVAE:
         N = len(X)
         n_batches = N // self.batch_size
 
+        
+
+        print('\n ****** \n')
+        print('Training deep convolutional VAE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' iterations a generated sample will be saved to '+ self.path)
+        print('\n ****** \n')
         total_iters=0
 
-        print('\n ****** \n')
-        print('Training deep convolutional VAE with a total of ' +str(N)+' samples distributed in '+str(n_batches)+' batches, each of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
-        print('\n ****** \n')
-
         for epoch in range(self.epochs):
+            
+            t0 = datetime.now()
+            print('Epoch: {0}'.format(epoch))
 
             SEED = SEED + 1
 
@@ -1513,52 +1788,39 @@ class DCVAE:
                             }
 
                 _, c = self.session.run(
-                            (self.train_op, self.elbo),
+                            (self.train_op, self.loss),
                             feed_dict=feed_dict
                     )
 
                 c /= self.batch_size
-                
-            total_iters +=1
+                costs.append(c)
 
-            if total_iters % self.save_sample == 0:
-                print("On iteration %d, cost: %.3f" %(total_iters, c))
-                print('Saving a sample...')
+                total_iters += 1
+
+                if total_iters % self.save_sample ==0:
+                    print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
+                    print('Saving a sample...')
+                        
+                    probs = [self.prior_predictive_sample_with_probs()  for i in range(64)]  
                     
-                    
-                n = 8 #number of images per side
-                x_values = np.linspace(-3,3,n)
-                y_values = np.linspace(-3,3,n)
+                    for i in range(64):
+                        plt.subplot(8,8,i+1)
+                        plt.imshow(probs[i].reshape(28,28), cmap='gray')
+                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                        plt.axis('off')
+                        
+                    fig = plt.gcf()
+                    fig.set_size_inches(4,4)
+                    plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
 
-                flat_image = np.empty((28*n,28*n))
-
-                Z=[]
-                for i, x in enumerate(x_values):
-                    for j, y in enumerate(y_values):
-                        z=[x, y]
-                        Z.append(z)
+        plt.clf()
+        plt.plot(costs)
+        plt.ylabel('cost')
+        plt.xlabel('iteration')
+        plt.title('learning rate=' + str(self.lr))
+        plt.show()
         
-                samples = self.sample(Z, n*n)
-                
-                k = 0
-                for i, x in enumerate(x_values):
-                    for j, y in enumerate(y_values):  
-                        x_recon = samples[k]
-                        k+=1
-        
-                        x_recon=x_recon.reshape(28,28)
-                        flat_image[(n - i - 1) * 28:(n - i) * 28, j * 28:(j + 1) * 28] = x_recon
-                
-                plt.imshow(flat_image,cmap='gray')
-                plt.show()
-                plt.savefig(
-                    self.path+'samples_at_iter_%d.png' % total_iters,
-                )
-                                
-            plt.clf()
-            plt.plot(costs, label='cost vs iteration')
-            plt.show()
-            plt.savefig(self.path+'cost vs iteration.png')
+        print('Parameters trained')
 
     def sample(self, Z, n):
         samples = self.session.run(
@@ -1579,9 +1841,8 @@ class DCVAE:
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
-        return self.session.run((self.prior_predictive, self.prior_predictive_probs))
+        return self.session.run( self.prior_predictive_probs)
 
-#debug
 #check if works by creating some samples
 #check support for rectangular images
 class resDCVAE:
@@ -1693,11 +1954,11 @@ class resDCVAE:
               1
         )
         
-        self.elbo = tf.reduce_sum(expected_log_likelihood - kl)
+        self.loss = tf.reduce_sum(expected_log_likelihood - kl)
         self.train_op = tf.train.AdamOptimizer(
-            learning_rate=LEARNING_RATE,
-            beta1=BETA1,
-        ).minimize(-self.elbo)
+            learning_rate=lr,
+            beta1=beta1,
+        ).minimize(-self.loss)
 
         #saving for later
         self.lr = lr
@@ -1717,20 +1978,23 @@ class resDCVAE:
             for key in e_sizes:
                 if 'block' in key:
                     print('Residual Network architecture detected')
+                    break
                 else:
                     print('Check network architecture')
-                break
+                    break
+
+                
 
             self.e_blocks = []
             #count conv blocks
 
             n_conv_blocks = 0
-            for key in d_sizes:
-                if 'block' in key:
+            for key in e_sizes:
+                if 'shortcut' in key:
                     n_conv_blocks+=1
-
+            
             #build conv blocks
-            for i in range(n_conv_blocks//2):
+            for i in range(n_conv_blocks):
             
                 e_block = ConvBlock(i,
                                mi, e_sizes,
@@ -1738,10 +2002,10 @@ class resDCVAE:
                 self.e_blocks.append(e_block)
                 mo, _, _, _, _, _, _, = e_sizes['convblock_layer_'+str(i)][-1]
                 mi = mo
-                dims_H=e_block.output_dim(dim_H)
-                dims_W=e_block.output_dim(dim_W)
+                dim_H=e_block.output_dim(dim_H)
+                dim_W=e_block.output_dim(dim_W)
         
-            mi = mi * dims_H * dims_W
+            mi = mi * dim_H * dim_W
             count = i
             
             self.e_dense_layers = []
@@ -1761,19 +2025,17 @@ class resDCVAE:
             name = 'e_conv_layer_%s' %count
             last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1, f=lambda x: x)
             self.e_dense_layers.append(last_enc_layer)
-
+            self.n_conv_blocks = n_conv_blocks
 
             return self.encode(X)
         
     def encode(self, X, reuse=None, is_training=True):
 
-        print('Convolution')
         #propagate X until end of encoder
         output=X
 
         i=0
-        print('Input for convolution shape ', X.get_shape())
-        for block in self.d_blocks:
+        for block in self.e_blocks:
             i+=1
             #print('Convolution_block_%i' %i)
             #print('Input shape', output.get_shape())
@@ -1787,7 +2049,7 @@ class resDCVAE:
         #print('After flatten shape', output.get_shape())
 
         i=0
-        for layer in self.d_dense_layers:
+        for layer in self.e_dense_layers:
             #print('Dense weights %i' %i)
             #print(layer.W.get_shape())
             output = layer.forward(output,
@@ -1808,13 +2070,12 @@ class resDCVAE:
         with st.value_type(st.SampleValue()):
             Z = st.StochasticTensor(Normal(loc=self.means, scale=self.stddev))
         
-        print('Latent space dimensions (/2)', output.get_shape())
         return Z
 
     def build_decoder(self, Z, d_sizes):
 
         with tf.variable_scope('decoder') as scope:
-            
+
             #dimensions of input
             dims_W = [self.n_W]
             dims_H = [self.n_H]
@@ -1824,19 +2085,6 @@ class resDCVAE:
 
             mi = self.latent_dims
             
-            for _, _, stride, _ in reversed(d_sizes['conv_layers']):
-                dim_H = int(np.ceil(float(dim_H)/stride))
-                dim_W = int(np.ceil(float(dim_W)/stride))
-                
-                dims_H.append(dim_H)
-                dims_W.append(dim_W)
-            
-            dims_H = list(reversed(dims_H))
-            dims_W = list(reversed(dims_W))
-            #print('Decoder dims:', dims)
-            self.d_dims_H = dims_H
-            self.d_dims_W = dims_W
-
             #dense layers
             self.d_dense_layers = []
             count = 0
@@ -1851,57 +2099,59 @@ class resDCVAE:
                 )
                 self.d_dense_layers.append(layer)
                 mi = mo
+            
+                        #count deconv blocks
+             
+            #calculate height and width of image at every layer
+            for i in range(self.n_conv_blocks):
+                
+                for _, _, stride, _, _, _, _, in reversed(d_sizes['deconvblock_layer_'+str(i)]):
                     
+                    dim_H = int(np.ceil(float(dim_H)/stride))
+                    dim_W = int(np.ceil(float(dim_W)/stride))
+                    dims_H.append(dim_H)
+                    dims_W.append(dim_W)
+            
+            dims_H = list(reversed(dims_H))
+            dims_W = list(reversed(dims_W))
+
+
+            self.d_dims_H = dims_H
+            self.d_dims_W = dims_W
+
+
             #calculate height and width of image at every layer            
             #final dense layer
             mo = d_sizes['projection']*dims_H[0]*dims_W[0]
             
             name = 'd_dense_layer_%s' %count
             layer = DenseLayer(name, mi, mo, not d_sizes['bn_after_project'], 1)
-            self.d_dense_layers.append(layer)
-            
+            self.d_dense_layers.append(layer)          
 
             #input channel number
-            mi = g_sizes['projection']
-            #count deconv blocks
-            n_conv_blocks = 0
-            for key in g_sizes:
-                if 'shortcut' in key:
-                    n_conv_blocks+=1
+            mi = d_sizes['projection']
             
             activation_functions = []
 
-            for _, _, _, _, _, act_f, _ in d_sizes['conv_layers'][:-1]:
-                activation_functions.append(act_f)
-
-            activation_functions.append(d_sizes['output_activation'])
-            #deconvolutional blocks
-
             self.d_blocks=[]
 
-            output_sizes = {}
+            output_sizes={}
+            for i in range(self.n_conv_blocks):
+                
+                output_sizes[i]=[ [dims_W[j] ,dims_H[j]]  for j in range(1, len(d_sizes['deconvblock_layer_'+str(i)])+1)]            
+                    
 
-            for i in range(n_conv_blocks):
-                output_sizes[i] = [
-                    dims_W[i+1:i+1+len(d_sizes['deconvblock_layer_'+str(i)])],
-                    dims_H[i+1:i+1+len(d_sizes['deconvblock_layer_'+str(i)])]
-                ]
-            
-            #activation_functions = [tf.nn.relu]*(n_conv_blocks-1)+[g_sizes['output_activation']]
-
-            for i in range(n_conv_blocks):
+            for i in range(self.n_conv_blocks):
             
                 name = 'd_block_layer_%s' %i
-            
-                #f = activation_functions[i]
                 d_block = DeconvBlock(i, 
                                       mi,
-                                      output_sizes[i], 
+                                      output_sizes, 
                                       d_sizes, 
                 )
             
                 self.d_blocks.append(d_block)
-                mo, _, _, _, _, _, = d_sizes['deconvblock_layer_'+str(i)][-1]
+                mo, _, _, _, _, _, _, = d_sizes['deconvblock_layer_'+str(i)][-1]
                 mi = mo
                     
             self.d_sizes=d_sizes
@@ -1910,17 +2160,13 @@ class resDCVAE:
         
     def decode(self, Z, reuse=None, is_training=True):
 
-        print('Deconvolution')
-        #dense layers
-
         output = Z
-        print('Input for deconvolution shape', Z.get_shape())
+
         i=0
         for layer in self.d_dense_layers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            #print('After dense layer %i' %i)
-            #print('shape: ', output.get_shape())
+
 
         
         output = tf.reshape(
@@ -1930,7 +2176,6 @@ class resDCVAE:
         
         )
 
-        #print('Reshaped output after projection', output.get_shape())
 
         if self.d_sizes['bn_after_project']:
             output = tf.contrib.layers.batch_norm(
@@ -1944,7 +2189,6 @@ class resDCVAE:
             scope='bn_after_project'
         )
         # passing to deconv blocks
-
         
         i=0
         for block in self.d_blocks:
@@ -1952,25 +2196,23 @@ class resDCVAE:
             output = block.forward(output,
                                     reuse,
                                     is_training)
-            #print('After deconvolutional block %i' %i)
-            #print('shape: ', output.get_shape())
+
     
 
-        print('Deconvoluted output shape', output.get_shape())
         return output
 
     def set_session(self, session):
         
         self.session = session
         
-        for layer in self.e_conv_layers:
+        for layer in self.e_blocks:
             layer.set_session(session)
         for layer in self.e_dense_layers:
             layer.set_session(session)
             
-        for layer in self.d_dense_layers:
+        for layer in self.d_blocks:
             layer.set_session(session) 
-        for layer in self.d_conv_layers:
+        for layer in self.d_dense_layers:
             layer.set_session(session)  
         
     def fit(self, X):
@@ -1981,14 +2223,18 @@ class resDCVAE:
         N = len(X)
         n_batches = N // self.batch_size
 
+        
+
+        print('\n ****** \n')
+        print('Training residual convolutional VAE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' iterations a generated sample will be saved to '+ self.path)
+        print('\n ****** \n')
         total_iters=0
 
-        print('\n ****** \n')
-        print('Training deep convolutional VAE with a total of ' +str(N)+' samples distributed in '+str(n_batches)+' batches, each of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
-        print('\n ****** \n')
-
         for epoch in range(self.epochs):
+            
+            t0 = datetime.now()
+            print('Epoch: {0}'.format(epoch))
 
             SEED = SEED + 1
 
@@ -2001,59 +2247,46 @@ class resDCVAE:
                             }
 
                 _, c = self.session.run(
-                            (self.train_op, self.elbo),
+                            (self.train_op, self.loss),
                             feed_dict=feed_dict
                     )
 
                 c /= self.batch_size
-                
-            total_iters +=1
+                costs.append(c)
 
-            if total_iters % self.save_sample == 0:
-                print("On iteration %d, cost: %.3f" %(total_iters, c))
-                print('Saving a sample...')
+                total_iters += 1
+
+                if total_iters % self.save_sample ==0:
+                    print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
+                    print('Saving a sample...')
+                        
+                    probs = [self.prior_predictive_sample_with_probs()  for i in range(64)]  
                     
-                    
-                n = 8 #number of images per side
-                x_values = np.linspace(-3,3,n)
-                y_values = np.linspace(-3,3,n)
+                    for i in range(64):
+                        plt.subplot(8,8,i+1)
+                        plt.imshow(probs[i].reshape(28,28), cmap='gray')
+                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                        plt.axis('off')
+                        
+                    fig = plt.gcf()
+                    fig.set_size_inches(4,4)
+                    plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
 
-                flat_image = np.empty((28*n,28*n))
-
-                Z=[]
-                for i, x in enumerate(x_values):
-                    for j, y in enumerate(y_values):
-                        z=[x, y]
-                        Z.append(z)
+        plt.clf()
+        plt.plot(costs)
+        plt.ylabel('cost')
+        plt.xlabel('iteration')
+        plt.title('learning rate=' + str(self.lr))
+        plt.show()
         
-                samples = self.sample(Z, n*n)
-                
-                k = 0
-                for i, x in enumerate(x_values):
-                    for j, y in enumerate(y_values):  
-                        x_recon = samples[k]
-                        k+=1
-        
-                        x_recon=x_recon.reshape(28,28)
-                        flat_image[(n - i - 1) * 28:(n - i) * 28, j * 28:(j + 1) * 28] = x_recon
-                
-                plt.imshow(flat_image,cmap='gray')
-                plt.show()
-                plt.savefig(
-                    self.path+'samples_at_iter_%d.png' % total_iters,
-                )
-                                
-            plt.clf()
-            plt.plot(costs, label='cost vs iteration')
-            plt.show()
-            plt.savefig(self.path+'cost vs iteration.png')
+        print('Parameters trained')
 
-    def sample(self, Z, n):
-        samples = self.session.run(
-          self.prior_predictive_from_input_probs,
-          feed_dict={self.Z_input: Z, self.batch_sz: n}
-        )
-        return samples
+    # def sample(self, Z, n):
+    #     samples = self.session.run(
+    #       self.prior_predictive_from_input_probs,
+    #       feed_dict={self.Z_input: Z, self.batch_sz: n}
+    #     )
+    #     return samples
 
     def prior_predictive_with_input(self, Z):
         return self.session.run(
@@ -2067,9 +2300,7 @@ class resDCVAE:
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
-        return self.session.run((self.prior_predictive, self.prior_predictive_probs))
-
-#class aeDNN: 
+        return self.session.run(self.prior_predictive_probs)
 
 #class aeCNN: 
 
@@ -2198,7 +2429,7 @@ class DCGAN:
         real_predictions = tf.cast(logits>0,tf.float32)
         fake_predictions = tf.cast(sample_logits<0,tf.float32)
         
-        num_predictions=2.0*BATCH_SIZE
+        num_predictions=2.0*batch_size
         num_correct = tf.reduce_sum(real_predictions)+tf.reduce_sum(fake_predictions)
         
         self.d_accuracy = num_correct/num_predictions
@@ -2208,19 +2439,16 @@ class DCGAN:
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         self.d_train_op = tf.train.AdamOptimizer(
-            lr,
+            learning_rate=lr,
             beta1=beta1,
-        
         ).minimize(
             self.d_cost,
             var_list=self.d_params
         )
         
         self.g_train_op = tf.train.AdamOptimizer(
-        
-            LEARNING_RATE,
-            beta1=BETA1,
-        
+            learning_rate=lr,
+            beta1=beta1,
         ).minimize(
             self.g_cost,
             var_list=self.g_params
@@ -2257,7 +2485,7 @@ class DCGAN:
             for mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['conv_layers']:
                 
                 # make up a name - used for get_variable
-                name = "convlayer_%s" % count
+                name = "d_convlayer_%s" % count
                 count += 1
 
                 layer = ConvLayer(name, mi, mo, 
@@ -2304,8 +2532,8 @@ class DCGAN:
             i=0
             for layer in self.d_convlayers:
                 i+=1
-                #print('Convolution_layer_%i' %i)
-                #print('Input shape', output.get_shape())
+                # print('Convolution_layer_%i' %i)
+                # print('Input shape', output.get_shape())
                 output = layer.forward(output,
                                      reuse, 
                                      is_training)
@@ -2316,7 +2544,7 @@ class DCGAN:
             i=0
             for layer in self.d_dense_layers:
                 #print('Dense weights %i' %i)
-                #print(layer.W.get_shape())
+                print(layer.W.get_shape())
                 output = layer.forward(output,
                                        reuse,
                                        is_training)
@@ -2373,7 +2601,7 @@ class DCGAN:
             dims_W = list(reversed(dims_W))
             self.g_dims_H = dims_H
             self.g_dims_W = dims_W
-
+            print(dims_H, dims_W)
             
             mo = g_sizes['projection']*dims_H[0]*dims_W[0]
         
@@ -2423,8 +2651,8 @@ class DCGAN:
         for layer in self.g_dense_layers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            #print('After dense layer %i' %i)
-            #print('shape: ', output.get_shape())
+            # print('After dense layer %i' %i)
+            # print('shape: ', output.get_shape())
         
         output = tf.reshape(
             output,
@@ -2433,7 +2661,7 @@ class DCGAN:
         
         )
 
-        #print('Reshaped output after projection', output.get_shape())
+        # print('Reshaped output after projection', output.get_shape())
 
         if self.g_sizes['bn_after_project']:
             output = tf.contrib.layers.batch_norm(
@@ -2453,8 +2681,8 @@ class DCGAN:
         for layer in self.g_convlayers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            #print('After deconvolutional layer %i' %i)
-            #print('shape: ', output.get_shape())
+            # print('After deconvolutional layer %i' %i)
+            # print('shape: ', output.get_shape())
 
 
         print('Deconvoluted output shape', output.get_shape())
@@ -2477,7 +2705,7 @@ class DCGAN:
             layer.set_session(session)
     
     def fit(self, X):
-        
+
         d_costs = []
         g_costs = []
 
@@ -2491,15 +2719,17 @@ class DCGAN:
         print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
 
-        for i in range(self.epochs):
-            
+        for epoch in range(self.epochs):
+
+            SEED +=1
+
             print('Epoch:', i)
-            np.random.shuffle(X)
             
-            for j in range(n_batches):
+            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+
+            for X_batch in batches:
                 
                 t0 = datetime.now()
-                X_batch = X[j*self.batch_size:(j+1)*self.batch_size]
                 
                 Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
                 
@@ -2527,7 +2757,7 @@ class DCGAN:
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
-                    print("  batch: %d/%d  -  dt: %s - d_acc: %.2f" % (j+1, n_batches, datetime.now() - t0, d_acc))
+                    print("  batch: %d/%d  -  dt: %s - d_acc: %.2f" % (epoch+1, n_batches, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
                     Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
@@ -2712,20 +2942,16 @@ class resDCGAN:
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         self.d_train_op = tf.train.AdamOptimizer(
-        
-            lr,
+            learning_rate=lr,
             beta1=beta1,
-        
         ).minimize(
             self.d_cost,
             var_list=self.d_params
         )
         
         self.g_train_op = tf.train.AdamOptimizer(
-        
-            lr,
+            learning_rate=lr,
             beta1=beta1,
-        
         ).minimize(
             self.g_cost,
             var_list=self.g_params
@@ -2889,7 +3115,7 @@ class resDCGAN:
 
             self.g_blocks=[]
             
-            #activation_functions = [tf.nn.relu]*(n_conv_blocks-1)+[g_sizes['output_activation']]
+
 
             for i in range(n_conv_blocks//2):
             
