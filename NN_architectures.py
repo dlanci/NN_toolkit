@@ -2468,7 +2468,6 @@ class DCGAN:
             mi = self.n_C
             dim_H = self.n_H
             dim_W = self.n_W
-            # dims=[dim]
             
             for key in d_sizes:
                 if not 'block' in key:
@@ -2601,7 +2600,7 @@ class DCGAN:
             dims_W = list(reversed(dims_W))
             self.g_dims_H = dims_H
             self.g_dims_W = dims_W
-            print(dims_H, dims_W)
+
             
             mo = g_sizes['projection']*dims_H[0]*dims_W[0]
         
@@ -2706,6 +2705,7 @@ class DCGAN:
     
     def fit(self, X):
 
+        SEED = 1
         d_costs = []
         g_costs = []
 
@@ -2723,7 +2723,7 @@ class DCGAN:
 
             SEED +=1
 
-            print('Epoch:', i)
+            print('Epoch:', epoch)
             
             batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
 
@@ -2757,7 +2757,7 @@ class DCGAN:
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
-                    print("  batch: %d/%d  -  dt: %s - d_acc: %.2f" % (epoch+1, n_batches, datetime.now() - t0, d_acc))
+                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
                     Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
@@ -2968,8 +2968,8 @@ class resDCGAN:
             
             #dimensions of input
             mi = self.n_C
-            dim = self.n_W
-            dims=[dim]
+            dim_W = self.n_W
+            dim_H = self.n_H
             
             for key in d_sizes:
                 if 'block' in key:
@@ -2982,11 +2982,11 @@ class resDCGAN:
             #count conv blocks
             n_conv_blocks = 0
             for key in d_sizes:
-                if 'block' in key:
+                if 'shortcut' in key:
                     n_conv_blocks+=1
          
             #build conv blocks
-            for i in range(n_conv_blocks//2):
+            for i in range(n_conv_blocks):
             
                 d_block = ConvBlock(i,
                                mi, d_sizes,
@@ -2994,9 +2994,10 @@ class resDCGAN:
                 self.d_blocks.append(d_block)
                 mo, _, _, _, _, _, = d_sizes['convblock_layer_'+str(i)][-1]
                 mi = mo
-                dims.append(d_block.output_dim(dim))
+                dim_H=d_block.output_dim(dim_H)
+                dim_W=d_block.output_dim(dim_W)
         
-            mi = mi * dims[-1] * dims[-1]
+            mi = mi * dim_H * dim_W
             count = i
 
             #build dense layers
@@ -3018,7 +3019,7 @@ class resDCGAN:
             name = 'd_dense_layer_%s' %count
 
             self.d_final_layer = DenseLayer(name, mi, 1, False, lambda x: x)
-            
+            self.n_conv_blocks=n_conv_blocks
             return self.d_forward(X)
             
     def d_forward(self, X, reuse = None, is_training=True):
@@ -3064,9 +3065,11 @@ class resDCGAN:
         with tf.variable_scope('generator') as scope:
             
             #dimensions of input
-            dims =[self.n_W]
-            dim = self.n_W
-            mi = self.latent_dims
+            dims_W = [self.n_W]
+            dims_H = [self.n_H]
+
+            dim_H = self.n_W
+            dim_W = self.n_W
             
             #dense layers
             self.g_dense_layers = []
@@ -3085,26 +3088,26 @@ class resDCGAN:
                 self.g_dense_layers.append(layer)
                 mi = mo
 
-            #deconvolutional layers
-            #count deconv blocks
-            n_conv_blocks = 0
-            for key in g_sizes:
-                if 'block' in key:
-                    n_conv_blocks+=1
                     
             #calculate height and width of image at every layer
-            for i in range(n_conv_blocks//2):
+            for i in range(self.n_conv_blocks):
                 
-                for _, _, stride, _, _, _, in reversed(g_sizes['deconvblock_layer_'+str(i)]):
-                    dim = int(np.ceil(float(dim)/stride))
-                    dims.append(dim)
-    
-            dims = list(reversed(dims))
-            print('blocks dims: ', dims)
-            self.g_dims = dims
+                for _, _, stride, _, _, _, _, in reversed(g_sizes['deconvblock_layer_'+str(i)]):
+                    
+                    dim_H = int(np.ceil(float(dim_H)/stride))
+                    dim_W = int(np.ceil(float(dim_W)/stride))
+                    dims_H.append(dim_H)
+                    dims_W.append(dim_W)
+            
+            dims_H = list(reversed(dims_H))
+            dims_W = list(reversed(dims_W))
+
+
+            self.g_dims_H = dims_H
+            self.g_dims_W = dims_W
             
             #final dense layer
-            mo = g_sizes['projection']*dims[0]*dims[0]
+            mo = g_sizes['projection']*g_dims_H[0]*g_dims_W[0]
             
             name = 'g_dense_layer_%s' %count
             layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'])
