@@ -286,7 +286,7 @@ class DNN:
                         )
                     
                 print('Evaluating performance on train/test sets')
-                print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
+                print('At iteration {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
                 print('test accuracy {0:.4g}'.format(test_acc))
           
 
@@ -309,6 +309,7 @@ class DNN:
             )
         return output
 
+#tested on mnist
 class CNN:
     
     """
@@ -679,6 +680,7 @@ class CNN:
             )
         return output
 
+#tested on mnist
 class resCNN:
     
     """
@@ -924,7 +926,6 @@ class resCNN:
         for layer in self.dense_layers:
             i+=1
             # print('Dense weights %i' %i)
-            print(layer.W.get_shape())
             output = layer.forward(output,
                                    reuse,
                                    is_training)
@@ -1031,7 +1032,7 @@ class resCNN:
                         )
                     
                 print('Evaluating performance on train/test sets')
-                print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
+                print('At iteration {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
                 print('test accuracy {0:.4g}'.format(test_acc))
           
 
@@ -1055,6 +1056,7 @@ class resCNN:
 
 #generative models
 
+#tested on mnist
 class DAE:
 
     """
@@ -1295,7 +1297,7 @@ class DAE:
 
         print('\n ****** \n')
         print('Training deep AE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epochs the training cost will be printed')
         print('\n ****** \n')
 
         for epoch in range(self.epochs):
@@ -1344,7 +1346,8 @@ class DAE:
         return self.session.run(
             self.X_decoded, feed_dict={self.X_input:X, self.batch_sz:1}
             )
-
+        
+#tested on mnist
 class DVAE:
 
     """
@@ -1720,7 +1723,7 @@ class DVAE:
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run(self.prior_predictive_probs)
 
-#check if works by creating some samples
+
 #check support for rectangular images
 class DCVAE:
 
