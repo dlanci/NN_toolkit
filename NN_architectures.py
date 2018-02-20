@@ -21,36 +21,68 @@ def lrelu(x, alpha=0.1):
     return tf.maximum(alpha*x,x)
 
 # some dummy constants
-LEARNING_RATE = 1
-BETA1 = 1
-BATCH_SIZE = 1
-EPOCHS = 1
-SAVE_SAMPLE_PERIOD = 1
-PATH = 'string'
-SEED = 1
+LEARNING_RATE = None
+BETA1 = None
+BATCH_SIZE = None
+EPOCHS = None
+SAVE_SAMPLE_PERIOD = None
+PATH = None
+SEED = None
 
 #NETWORK ARCHITECTURES
 
 #classification models
 
+#untested yet
 class DNN:
 
+    """
+    Builds densely connected deep neural network. Regularization implemented 
+    with dropout, no regularization parameter implemented yet. Minimization through
+    AdamOptimizer (adaptive learning rate)
+    
+    Constructor inputs:
+
+        -Positional arguments:
+            - dim: (int) input features
+            - sizes: (dict) python dictionary containing the size of the
+                    dense layers and the number of classes for classification
+            
+                sizes = {'dense_layer_n' :[mo, apply_batch_norm, keep_probability, act_f, w_init]
+                        'n_classes': n_classes
+                }
+
+                mo: (int) size of layer n
+                apply_batch_norm: (bool) apply batch norm at layer n
+                keep_probability: (float32) probability of activation of output
+                act_f: (function) activation function for layer n
+                w_init: (tf initializer) random initializer for weights at layer n
+                n_classes: number of classes
+
+        -Keyword arguments
+
+            -lr: (float32) learning rate arg for the AdamOptimizer
+            -beta1: (float32) beta1 arg for the AdamOptimizer
+            -batch_size: (int) size of each batch
+            -epochs: (int) number of times the training has to be repeated over all the batches
+            -save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+            -path: (str) path for saving the session checkpoint
+
+    Class attributes:
+
+        - X: (tf placeholder) input tensor of shape (batch_size, input features)
+        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+        - train_op: gradient descent algorithm with AdamOptimizer
+
+    """
     def __init__(self,
         dim, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH):
 
-        """
-        
-        Positional arguments
-
-
-
-        Keyword arguments
-
-
-        """
 
         self.n_classes = sizes['n_classes']
         self.dim = dim
@@ -166,6 +198,27 @@ class DNN:
 
     def fit(self, X_train, Y_train, X_test, Y_test):
 
+        """
+        Function is called if the flag is_training is set on TRAIN. If a model already is present
+        continues training the one already present, otherwise initialises all params from scratch.
+        
+        Performs the training over all the epochs, at when the number of epochs of training
+        is a multiple of save_sample prints out training cost, train and test accuracies
+        
+        Plots a plot of the cost versus epoch. 
+
+        Positional arguments:
+
+            - X_train: (ndarray) size=(train set size, input features) training sample set
+            - X_test: (ndarray) size=(test set size, input features) test sample set
+
+            - Y_train: (ndarray) size=(train set size, input features) training labels set
+            - Y_test: (ndarray) size=(test set size, input features) test labels set
+
+
+
+        """
+
         SEED = 1
 
         N = X_train.shape[0]
@@ -245,9 +298,10 @@ class DNN:
         
         print('Parameters trained')
 
-        #get samples at test time
     
     def predicted_Y_hat(self, X):
+
+
         pred = tf.nn.softmax(self.Y_hat_from_test)
         output = self.session.run(
             pred, 
@@ -257,6 +311,56 @@ class DNN:
 
 class CNN:
     
+    """
+    Builds convolutional neural network. Regularization implemented 
+    with dropout, no regularization parameter implemented yet. Minimization through
+    AdamOptimizer (adaptive learning rate). Supports convolution, max_pooling and avg_pooling
+    
+    Constructor inputs:
+
+        -Positional arguments:
+            - dims of input image: (n_W (rows))*(n_H (colums))*(n_C (input channels))
+
+            - sizes: (dict) python dictionary containing the size of the
+                    convolutional layers and the number of classes for classification
+            
+                sizes = {'conv_layer_n' :[(mo, filter_sz, stride, apply_batch_norm, keep_probability, act_f, w_init)]
+                        'maxpool_layer_n':[(filter_sz, stride, keep_prob)]
+                        'avgpool_layer_n':[(filter_sz, stride, keep_prob)]
+                        
+                        'n_classes': n_classes
+
+                }
+                
+                convolution and pooling layers can be in any order, the last key has to be 'n_classes'
+
+                mo: (int) number of output channels after convolution
+                filter_sz: (int) size of the kernel
+                stride: (int) stride displacement
+                apply_batch_norm: (bool) apply batch norm at layer n
+                keep_probability: (float32) probability of activation of output
+                act_f: (function) activation function for layer n
+                w_init: (tf initializer) random initializer for weights at layer n
+                n_classes: number of classes
+
+        -Keyword arguments
+
+            -lr: (float32) learning rate arg for the AdamOptimizer
+            -beta1: (float32) beta1 arg for the AdamOptimizer
+            -batch_size: (int) size of each batch
+            -epochs: (int) number of times the training has to be repeated over all the batches
+            -save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+            -path: (str) path for saving the session checkpoint
+
+    Class attributes:
+
+        - X: (tf placeholder) input tensor of shape (batch_size, input features)
+        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+        - train_op: gradient descent algorithm with AdamOptimizer
+
+    """
     def __init__(
 
         self, n_W, n_H, n_C, sizes,
@@ -265,16 +369,6 @@ class CNN:
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
         ):
 
-        """
-        Positional args:
-
-        
-
-        Keyword args:
-
-
-
-        """
         self.n_classes = sizes['n_classes']
         self.n_H = n_H
         self.n_W = n_W
@@ -477,6 +571,25 @@ class CNN:
 
     def fit(self, X_train, Y_train, X_test, Y_test):
 
+        """
+
+        Function is called if the flag is_training is set on TRAIN. If a model already is present
+        continues training the one already present, otherwise initialises all params from scratch.
+        
+        Performs the training over all the epochs, at when the number of epochs of training
+        is a multiple of save_sample prints out training cost, train and test accuracies
+        
+        Plots a plot of the cost versus epoch. 
+
+        Positional arguments:
+
+            - X_train: (ndarray) size=(train set size, input features) training sample set
+            - X_test: (ndarray) size=(test set size, input features) test sample set
+
+            - Y_train: (ndarray) size=(train set size, input features) training labels set
+            - Y_test: (ndarray) size=(test set size, input features) test labels set
+
+        """
         SEED = 1
 
         N = X_train.shape[0]
@@ -568,6 +681,58 @@ class CNN:
 
 class resCNN:
     
+    """
+    Builds residual convolutional neural network. Regularization implemented 
+    with dropout, no regularization parameter implemented yet. Minimization through
+    AdamOptimizer (adaptive learning rate). Supports convolution, max_pooling and avg_pooling
+    
+    Constructor inputs:
+
+        -Positional arguments:
+            - dims of input image: (n_W (rows))*(n_H (colums))*(n_C (input channels))
+
+            - sizes: (dict) python dictionary containing the size of the
+                    convolutional blocks and the number of classes for classification
+            
+                sizes = {'convblock_layer_n' :[(mo, filter_sz, stride, apply_batch_norm, keep_probability, act_f, w_init),
+                                                (),
+                                                (),]
+                        'maxpool_layer_n':[(filter_sz, stride, keep_prob)]
+                        'avgpool_layer_n':[(filter_sz, stride, keep_prob)]
+                        
+                        'n_classes': n_classes
+
+                }
+                
+                convolution blocks and pooling layers can be in any order, the last key has to be 'n_classes'
+
+                mo: (int) number of output channels after convolution
+                filter_sz: (int) size of the kernel
+                stride: (int) stride displacement
+                apply_batch_norm: (bool) apply batch norm at layer n
+                keep_probability: (float32) probability of activation of output
+                act_f: (function) activation function for layer n
+                w_init: (tf initializer) random initializer for weights at layer n
+                n_classes: number of classes
+
+        -Keyword arguments
+
+            -lr: (float32) learning rate arg for the AdamOptimizer
+            -beta1: (float32) beta1 arg for the AdamOptimizer
+            -batch_size: (int) size of each batch
+            -epochs: (int) number of times the training has to be repeated over all the batches
+            -save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+            -path: (str) path for saving the session checkpoint
+
+    Class attributes:
+
+        - X: (tf placeholder) input tensor of shape (batch_size, input features)
+        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+        - train_op: gradient descent algorithm with AdamOptimizer
+
+    """
     def __init__(
 
         self, n_W, n_H, n_C, sizes,
@@ -576,14 +741,6 @@ class resCNN:
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
         ):
 
-        """
-        Positional args:
-
-
-        Keyword args:
-
-
-        """
         self.n_classes = sizes['n_classes']
         self.n_H = n_H
         self.n_W = n_W
@@ -787,6 +944,26 @@ class resCNN:
 
     def fit(self, X_train, Y_train, X_test, Y_test):
 
+        """
+
+        Function is called if the flag is_training is set on TRAIN. If a model already is present
+        continues training the one already present, otherwise initialises all params from scratch.
+        
+        Performs the training over all the epochs, at when the number of epochs of training
+        is a multiple of save_sample prints out training cost, train and test accuracies
+        
+        Plots a plot of the cost versus epoch. 
+
+        Positional arguments:
+
+            - X_train: (ndarray) size=(train set size, input features) training sample set
+            - X_test: (ndarray) size=(test set size, input features) test sample set
+
+            - Y_train: (ndarray) size=(train set size, input features) training labels set
+            - Y_test: (ndarray) size=(test set size, input features) test labels set
+
+        """
+
         SEED = 1
 
         N = X_train.shape[0]
@@ -880,19 +1057,54 @@ class resCNN:
 
 class DAE:
 
+    """
+    Builds densely connected deep autoencoder. Regularization implemented 
+    with dropout, no regularization parameter implemented yet. Minimization through
+    AdamOptimizer (adaptive learning rate).
+
+    The minimized loss function is the reduced sum of the sigmoid cross entropy with logis
+    over all the barch samples.
+
+    Constructor inputs:
+
+        -Positional arguments:
+            - dim: (int) input features 
+            - e_sizes: (dict)
+            - d_sizes: (dict)
+        
+        -Keyword arguments
+
+            - an_id: (int) number useful for stacked ae
+            - lr: (float32) learning rate arg for the AdamOptimizer
+            - beta1: (float32) beta1 arg for the AdamOptimizer
+            - batch_size: (int) size of each batch
+            - epochs: (int) number of times the training has to be repeated over all the batches
+            - save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+            - path: (str) path for saving the session checkpoint
+
+    Class attributes:
+        
+        - X: (tf placeholder) input tensor of shape (batch_size, input features)
+        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+        - train_op: gradient descent algorithm with AdamOptimizer
+
+    
+
+    Class methods:
+        - get_sample:
+
+    """
+
+
     def __init__(
         self, dim, e_sizes, d_sizes, an_id=0, 
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
         ):
-        """
-        Positional args
 
-        Keyword args
-
-
-        """
 
         self.dim = dim
         self.an_id = an_id
@@ -1058,6 +1270,21 @@ class DAE:
 
     def fit(self, X):
 
+        """
+        Function is called if the flag is_training is set on TRAIN. If a model already is present
+        continues training the one already present, otherwise initialises all params from scratch.
+        
+        Performs the training over all the epochs, at when the number of epochs of training
+        is a multiple of save_sample, prints the cost at that epoch. When training has gone through all
+        the epochs, plots a plot of the cost versus epoch. 
+
+        Positional arguments:
+
+            - X_train: (ndarray) size=(train set size, input features) training sample set
+            
+        """
+
+
         SEED = 1
 
         costs = []
@@ -1107,11 +1334,57 @@ class DAE:
         print('Parameters trained')
 
     def get_sample(self, X):
+        """
+        Input X
+
+        takes an X, encodes and then decodes it reproducing a X_hat
+
+        Outputs X_hat
+        """
         return self.session.run(
             self.X_decoded, feed_dict={self.X_input:X, self.batch_sz:1}
             )
 
 class DVAE:
+
+    """
+    Builds densely connected deep variational autoencoder. Regularization implemented 
+    with dropout, no regularization parameter implemented yet. Minimization through
+    AdamOptimizer (adaptive learning rate).
+
+    The minimized loss function is the elbo function (explain further)
+
+    Constructor inputs:
+
+        -Positional arguments:
+            - dim: (int) input features 
+            - e_sizes: (dict)
+            - d_sizes: (dict)
+        
+        -Keyword arguments
+
+            - an_id: (int) number useful for stacked ae
+            - lr: (float32) learning rate arg for the AdamOptimizer
+            - beta1: (float32) beta1 arg for the AdamOptimizer
+            - batch_size: (int) size of each batch
+            - epochs: (int) number of times the training has to be repeated over all the batches
+            - save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+            - path: (str) path for saving the session checkpoint
+
+    Class attributes:
+        
+        - X: (tf placeholder) input tensor of shape (batch_size, input features)
+        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+        - train_op: gradient descent algorithm with AdamOptimizer
+
+    
+    Class methods:
+        - posterior_predictive_sample:
+        - prior_predictive_sample_with_probs:
+
+    """
 
     def __init__(
         self, dim, e_sizes, d_sizes, an_id=0, 
@@ -1355,6 +1628,20 @@ class DVAE:
 
     def fit(self, X):
 
+        """
+        Function is called if the flag is_training is set on TRAIN. If a model already is present
+        continues training the one already present, otherwise initialises all params from scratch.
+        
+        Performs the training over all the epochs, at when the number of epochs of training
+        is a multiple of save_sample, prints the cost at that epoch. When training has gone through all
+        the epochs, plots a plot of the cost versus epoch. 
+
+        Positional arguments:
+
+            - X_train: (ndarray) size=(train set size, input features) training sample set
+            
+        """
+        
         SEED = 1
 
         costs = []
@@ -2801,7 +3088,6 @@ class DCGAN:
             feed_dict={self.Z:Z, self.batch_sz: 1})
 
         return one_sample 
-
 
 
 #debug

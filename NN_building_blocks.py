@@ -4,9 +4,23 @@ import math
 import tensorflow as tf
 
 def lrelu(x, alpha=0.1):
+
+    """
+    Implements the leakyRELU function:
+
+    inputs X, returns X if X>0, returns alpha*X if X<0
+    """
+
+
     return tf.maximum(alpha*x,x)
 
 def evaluation(Y_pred, Y):
+
+    """
+    Returns the accuracy by comparing the convoluted output Y_hat
+    with the labels of the samples Y
+
+    """
     
     correct = tf.equal(tf.argmax(Y_pred, 1), tf.argmax(Y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
@@ -26,6 +40,7 @@ def supervised_random_mini_batches(X, Y, mini_batch_size, seed):
     Returns:
     mini_batches -- list of synchronous (mini_batch_X, mini_batch_Y)
     """
+
     np.random.seed(seed)
     m = X.shape[0]        #number of examples in set
     n_classes = Y.shape[1]
@@ -96,6 +111,39 @@ def unsupervised_random_mini_batches(X, mini_batch_size, seed):
 # DENSELY CONNECTED NETWORKS
 
 class DenseLayer(object):
+
+    """
+    Creates a dense layer
+
+    Constructor inputs:
+        - name of layer
+        - mi: (int) dimension of input to layer
+        - mo: (int) dimension of output of the activated output
+        - apply_batch_norm: (bool) wether applying or not batch_normalization along the 0 axis of input
+        - f: (function) activation function of the output
+        - w_init: (tensorflow initializer) which initializer to use for the layer weights
+
+    Created attributes:
+
+        - W: (tf variable) (mi x mo) weight matrix
+        - bi: (tf variable) (mo, ) bias vector
+        - bo: (tf variable) (mi, ) bias vector
+    
+    Class methods:
+
+        - forward:
+            input: X (tf tensor) previous output layer
+            outputs: output (tf tensor) activated layer output as A = act_f(X * W+ bi)
+
+        - forwardT:
+            input: X (tf tensor) previous output layer
+            outputs: output (tf tensor) activated layer output as A = act_f(X * tf.transpose(W)+ bo)
+    
+        - set_session:
+            Sets current session
+            input:
+                session: (tf session) current session
+    """
     
     def __init__(self, name, mi, mo, apply_batch_norm, keep_prob, 
                 f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02)
@@ -176,7 +224,26 @@ class DenseLayer(object):
 
 class AvgPool2D(object):
 
-    def __init__(self, filter_sz, stride, keep_prob):
+    """
+    Performs average 2D pooling of the input, with no dropout by default
+    Note that this layer trains no parameters
+
+    Constructor input:
+        - filter_sz: (int) width and height of the square pooling window 
+        - stride: (int) horizontal and vertical value for the stride
+
+        ?extend to square windows and stride?
+
+    Class methods:
+
+        forward:
+            inputs:
+                - X (tf tensor) previous activated layer output
+                - output (tf tensor) average pooled layer output
+
+    """
+
+    def __init__(self, filter_sz, stride, keep_prob=1):
 
         self.filter_sz = filter_sz
         self.stride = stride
@@ -203,6 +270,25 @@ class AvgPool2D(object):
         self.session = session
 
 class MaxPool2D(object):
+
+    """
+    Performs max 2D pooling of the input, with no dropout by default
+    Note that this layer trains no parameters
+
+    Constructor input:
+        - filter_sz: (int) width and height of the square pooling window 
+        - stride: (int) horizontal and vertical value for the stride
+
+        ?extend to square windows and stride?
+
+    Class methods:
+
+        forward:
+            inputs:
+                - X (tf tensor) previous activated layer output
+                - output (tf tensor) max pooled layer output
+
+    """
 
     def __init__(self, filter_sz, stride, keep_prob):
 
@@ -232,17 +318,51 @@ class MaxPool2D(object):
 
 class ConvLayer(object):
     
+    """
+    Performs 2D strided convlution on rectangular sized input tensor. 
+
+    Constructor inputs:
+
+        - mi: (int) input channels
+        - mo: (int) output channels
+        - filter_sz: (int) width and height of the convolution kernel
+        - stride: (int) horizontal and vertical size of the stride
+        - apply_batch_norm: (bool) whether applying batch normalization (along [0] axis of input tensor) or not
+        - keep_prob: (int) dropout keep probability of propagated tensor
+        - f: (function) activation layer function. tf.nn.relu by default
+        - w_init: (tf initializer) initialization of the filter parameters, by default tf.truncated_normal_initializer(stddev=0.02)
+
+    Class attributes
+
+        - W: (tf tensor) variable tensor of dim (filter_sz, filter_sz, mi, mo) of trainable weights
+        - b: (tf tensor) variable tensor of dim (mo, ) of trainable biases
+
+    Class methods:
+
+        - forward: 
+            inputs:
+                X: (tf tensor) input tensor of dim (batch_sz, n_W, n_H, mi) output of previous layer
+                reuse: (bool) whether reusing the stored batch_normalization parameters or not
+                is_training: (bool) flag that indicates whether we are in the process of training or not
+            outputs:
+                output: (tf tensor) activated output of dim (batch_sz, n_W, n_H, mo), input for next layer
+        
+        - set_session:
+            Sets current session
+            inputs:
+                session: (tf session) current session
+
+
+    """
+
+
+
     def __init__(
             self, name, mi, mo, filter_sz, stride, 
                  apply_batch_norm, keep_prob, f = tf.nn.relu,
                  w_init = tf.truncated_normal_initializer(stddev=0.02)
             ):
                 
-        
-            # mi: input channels
-            # mo: output chanels
-            # Will have to implement
-            # weight initializer
             
             self.W = tf.get_variable(
                 "W_%s" %name,
@@ -297,7 +417,52 @@ class ConvLayer(object):
         self.session = session
 
 class DeconvLayer(object):
-    
+  
+    """
+    Performs 2D strided deconvlution on rectangular sized input tensor. 
+
+    Constructor inputs:
+
+        - mi: (int) input channels
+        - mo: (int) output channels
+        - output_shape: list = [int, int], list[0]([1]) is the witdth (height) of the output after deconvolution, the layer computes the resizing
+                                automatically to match the output_shape. Default padding value is of 2 in both directions but can be modified.
+        - filter_sz: (int) width and height of the convolution kernel
+        - stride: (int) horizontal and vertical size of the stride
+        - apply_batch_norm: (bool) whether applying batch normalization (along [0] axis of input tensor) or not
+        - keep_prob: (int) dropout keep probability of propagated tensor
+        - f: (function) activation layer function. tf.nn.relu by default
+        - w_init: (tf initializer) initialization of the filter parameters, by default tf.truncated_normal_initializer(stddev=0.02)
+
+    Class attributes
+
+        - W: (tf tensor) variable tensor of dim (filter_sz, filter_sz, mo, mo) of trainable weights
+        - W_id: (tf tensor) variable tensor of dim (1, 1, mi, mo) of trainable weights
+        - b: (tf tensor) variable tensor of dim (mo, ) of trainable biases
+
+    Class methods:
+
+        - forward: 
+            inputs:
+                X: (tf tensor) input tensor of dim (batch_sz, n_W, n_H, mi) output of previous layer
+                reuse: (bool) whether reusing the stored batch_normalization parameters or not
+                is_training: (bool) flag that indicates whether we are in the process of training or not
+
+                The deconvolution is computed in 3 steps according to: (cite article)
+                1) conv2d with W_id is performed to match the output channels mo, with filter_sz=1 and stride=1
+                2) the image is reshaped to reshape_size_H and W 
+                3) conv2d with W is performed with input filter_sz and stride, output width and height will match output_shape
+
+            outputs:
+                output: (tf tensor) activated output of dim (batch_sz, n_W=output_shape[0], n_H = output_shape[1], mo), input for next layer
+        
+        - set_session:
+            Sets current session
+            inputs:
+                session: (tf session) current session
+
+
+    """  
     def __init__(self, name, 
                 mi, mo, output_shape, 
                 filter_sz, stride, 
@@ -409,7 +574,61 @@ class DeconvLayer(object):
         self.session = session
 
 class ConvBlock(object):
+
+    """
+    Performs series of 2D strided convolutions on rectangular sized input tensor. The convolution proceeds on two parallel
+    paths: main path is composed by n subsequent convolutions while shortcut path has 1 convolution with different parameters and
+    can be set as the identity convolution. 
     
+    Constructor inputs:
+
+
+        - block_id: progressive number of block in the network
+        - init_mi: (int) input channels
+        - sizes: (dict) python dictionary with keys:
+                            
+            sizes = { 'convblock_layer_n':[(n_c+1, kernel, stride, apply_batch_norm, keep_prob, act_f, weight initializer),
+                               (n_c+2,,,,,,,),
+                               (n_c+...,,,,,,,),
+                               (n_c+ last,,,,,,,],
+
+            'convblock_shortcut_layer_n':[(n_c+3, kernel, stride, apply_batch_norm, act_f, weight initializer)],
+            'dense_layers':[(dim output, apply_batch_norm, keep_prob, act_f, weight initializer )]
+            }
+
+            - filter_sz: (int) width and height of the convolution kernel at that layer
+            - stride: (int) horizontal and vertical size of the stride at that layer
+            - apply_batch_norm: (bool) whether applying batch normalization (along [0] axis of input tensor) or not
+            - keep_prob: (int) dropout keep probability of propagated tensor
+            - f: (function) activation layer function. tf.nn.relu by default
+            - w_init: (tf initializer) initialization of the filter parameters, by default tf.truncated_normal_initializer(stddev=0.02)
+            
+            sizes['convblock_layer_n'] is a list of tuples of layers specifications for the main path 
+            sizes['convblock_shortcut_layer_n'] is a list composed by 1 tuple of layer specifications for the shortcut path
+            sizes['dense_layers'] is a list of tuples of layers specifications for the densely connected part of the network
+    
+    Class attributes
+
+        - conv_layers: (list) list of conv_layer objects
+        - shortcut_layer: (list) conv_layer object
+
+    Class methods:
+
+        - forward: 
+            inputs:
+                X: (tf tensor) input tensor of dim (batch_sz, n_W, n_H, mi) output of previous layer
+                reuse: (bool) whether reusing the stored batch_normalization parameters or not
+                is_training: (bool) flag that indicates whether we are in the process of training or not
+            outputs:
+                output: (tf tensor) activated output of dim (batch_sz, n_W, n_H, mo), input for next layer
+        
+        - set_session:
+            Sets current session
+            inputs:
+                session: (tf session) current session
+
+    """
+
     def __init__(self,
                 block_id,
                 init_mi, sizes,
@@ -511,6 +730,62 @@ class ConvBlock(object):
         return self.fin_act(output)
 
 class DeconvBlock(object):
+
+    """
+    Performs series of 2D strided deconvolutions on rectangular sized input tensor. The convolution proceeds on two parallel
+    paths: main path is composed by n subsequent deconvolutions while shortcut path has 1 deconvolution with different parameters and
+    can be set as the identity deconvolution. 
+    
+    Constructor inputs:
+
+
+        - block_id: progressive number of block in the network
+        - init_mi: (int) input channels
+        - sizes: (dict) python dictionary with keys:
+                          
+            sizes = { 
+
+                        'deconvblock_layer_n':[(n_c+1, kernel, stride, apply_batch_norm, keep_prob, act_f, weight initializer),
+                               (n_c+2,,,,,,,),
+                               (n_c+...,,,,,,,),
+                               (n_c+ last,,,,,,,],
+
+                        'deconvblock_shortcut_layer_n':[(n_c+3, kernel, stride, apply_batch_norm, act_f, weight initializer)],
+                        'dense_layers':[(dim output, apply_batch_norm, keep_prob, act_f, weight initializer )]
+                     }
+
+            - filter_sz: (int) width and height of the convolution kernel at that layer
+            - stride: (int) horizontal and vertical size of the stride at that layer
+            - apply_batch_norm: (bool) whether applying batch normalization (along [0] axis of input tensor) or not
+            - keep_prob: (int) dropout keep probability of propagated tensor
+            - f: (function) activation layer function. tf.nn.relu by default
+            - w_init: (tf initializer) initialization of the filter parameters, by default tf.truncated_normal_initializer(stddev=0.02)
+            
+            sizes['deconvblock_layer_n'] is a list of tuples of layers specifications for the main path 
+            sizes['deconvblock_shortcut_layer_n'] is a list composed by 1 tuple of layer specifications for the shortcut path
+            sizes['dense_layers'] is a list of tuples of layers specifications for the densely connected part of the network
+    
+    Class attributes
+
+        - conv_layers: (list) list of conv_layer objects
+        - shortcut_layer: (list) conv_layer object
+
+    Class methods:
+
+        - forward: 
+            inputs:
+                X: (tf tensor) input tensor of dim (batch_sz, n_W, n_H, mi) output of previous layer
+                reuse: (bool) whether reusing the stored batch_normalization parameters or not
+                is_training: (bool) flag that indicates whether we are in the process of training or not
+            outputs:
+                output: (tf tensor) activated output of dim (batch_sz, n_W, n_H, mo), input for next layer
+        
+        - set_session:
+            Sets current session
+            inputs:
+                session: (tf session) current session
+
+    """
     
     def __init__(self,
                 block_id,
