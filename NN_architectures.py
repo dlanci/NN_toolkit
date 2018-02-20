@@ -1641,7 +1641,7 @@ class DVAE:
             - X_train: (ndarray) size=(train set size, input features) training sample set
             
         """
-        
+
         SEED = 1
 
         costs = []
@@ -3157,7 +3157,7 @@ class resDCGAN:
         self.X = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_W, n_W, n_C),
+                   n_W, n_H, n_C),
             name='X',
         )
         
@@ -3353,7 +3353,7 @@ class resDCGAN:
             dims_W = [self.n_W]
             dims_H = [self.n_H]
 
-            dim_H = self.n_W
+            dim_H = self.n_H
             dim_W = self.n_W
             
             #dense layers
