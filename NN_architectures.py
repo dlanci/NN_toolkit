@@ -319,7 +319,7 @@ class CNN:
     Constructor inputs:
 
         -Positional arguments:
-            - dims of input image: (n_W (rows))*(n_H (colums))*(n_C (input channels))
+            - dims of input image: (n_H (rows))*(n_W (columns))*(n_C (input channels))
 
             - sizes: (dict) python dictionary containing the size of the
                     convolutional layers and the number of classes for classification
@@ -363,7 +363,7 @@ class CNN:
     """
     def __init__(
 
-        self, n_W, n_H, n_C, sizes,
+        self, n_H, n_W, n_C, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
@@ -382,13 +382,13 @@ class CNN:
         
         self.X = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name = 'X_data'
             )
 
         self.X_input = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name = 'X_input'
             )
 
@@ -735,7 +735,7 @@ class resCNN:
     """
     def __init__(
 
-        self, n_W, n_H, n_C, sizes,
+        self, n_H, n_W, n_C, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
@@ -754,13 +754,13 @@ class resCNN:
 
         self.X = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name = 'X'
             )
 
         self.X_input = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name = 'X'
             )
 
@@ -1724,7 +1724,7 @@ class DVAE:
 #check support for rectangular images
 class DCVAE:
 
-    def __init__(self, n_W, n_H, n_C, e_sizes, d_sizes,
+    def __init__(self, n_H, n_W, n_C, e_sizes, d_sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH):
@@ -1742,7 +1742,7 @@ class DCVAE:
 
         self.X = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name='X'
         )
         
@@ -2007,7 +2007,7 @@ class DCVAE:
 
         output = tf.reshape(
             output,
-            [-1, self.d_dims_W[0],self.d_dims_H[0],self.d_sizes['projection']]
+            [-1, self.d_dims_H[0],self.d_dims_W[0],self.d_sizes['projection']]
         )
 
         if self.d_sizes['bn_after_project']:
@@ -2134,7 +2134,7 @@ class DCVAE:
 #check support for rectangular images
 class resDCVAE:
 
-    def __init__(self, n_W, n_H, n_C, e_sizes, d_sizes,
+    def __init__(self, n_H, n_W, n_C, e_sizes, d_sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH):
@@ -2153,7 +2153,7 @@ class resDCVAE:
         
         self.X = tf.placeholder(
             tf.float32,
-            shape=(None, n_W, n_H, n_C),
+            shape=(None, n_H, n_W, n_C),
             name='X'
         )
         
@@ -2424,7 +2424,7 @@ class resDCVAE:
             output_sizes={}
             for i in range(self.n_conv_blocks):
                 
-                output_sizes[i]=[ [dims_W[j] ,dims_H[j]]  for j in range(1, len(d_sizes['deconvblock_layer_'+str(i)])+1)]            
+                output_sizes[i]=[ [dims_H[j] ,dims_W[j]]  for j in range(1, len(d_sizes['deconvblock_layer_'+str(i)])+1)]            
                     
 
             for i in range(self.n_conv_blocks):
@@ -2458,7 +2458,7 @@ class resDCVAE:
         output = tf.reshape(
             output,
             
-            [-1, self.d_dims_W[0], self.d_dims_H[0], self.d_sizes['projection']]
+            [-1, self.d_dims_H[0], self.d_dims_W[0], self.d_sizes['projection']]
         
         )
 
@@ -2596,7 +2596,7 @@ class DCGAN:
     
     def __init__(
         self,
-        n_W, n_H, n_C,
+        n_H, n_W, n_C,
         d_sizes,g_sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
@@ -2654,7 +2654,7 @@ class DCGAN:
         self.X = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_W, n_H, n_C),
+                   n_H, n_W, n_C),
             name='X',
         )
         
@@ -3095,7 +3095,7 @@ class resDCGAN:
     
     def __init__(
         self, 
-        n_W, n_H, n_C,
+        n_H, n_W, n_C,
         d_sizes,g_sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
@@ -3157,7 +3157,7 @@ class resDCGAN:
         self.X = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_W, n_H, n_C),
+                   n_H, n_W, n_C),
             name='X',
         )
         
@@ -3407,7 +3407,7 @@ class resDCGAN:
             output_sizes={}
             for i in range(self.n_conv_blocks):
                 
-                output_sizes[i]=[ [dims_W[j] ,dims_H[j]]  for j in range(1, len(g_sizes['deconvblock_layer_'+str(i)])+1)]            
+                output_sizes[i]=[ [dims_H[j] ,dims_W[j]]  for j in range(1, len(g_sizes['deconvblock_layer_'+str(i)])+1)]            
                     
 
             for i in range(self.n_conv_blocks):
@@ -3445,7 +3445,7 @@ class resDCGAN:
         output = tf.reshape(
             output,
             
-            [-1, self.g_dims_W[0], self.g_dims_H[0], self.g_sizes['projection']]
+            [-1, self.g_dims_H[0], self.g_dims_W[0], self.g_sizes['projection']]
         
         )
 
