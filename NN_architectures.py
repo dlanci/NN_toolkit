@@ -1759,7 +1759,7 @@ class DCVAE:
         self.Z = self.build_encoder(self.X, self.e_sizes)
         
         #builds decoder from Z distribution
-        logits = self.build_decoder(self.X, self.d_sizes)
+        logits = self.build_decoder(self.Z, self.d_sizes)
         
         #builds X_hat distribution from decoder output
         self.X_hat_distribution = Bernoulli(logits=logits)
@@ -1923,8 +1923,8 @@ class DCVAE:
     
         #build decoder
     
-    def build_decoder(self, X, d_sizes):
-
+    def build_decoder(self, Z, d_sizes):
+        
         with tf.variable_scope('decoder') as scope:
             
             dims_H=[self.n_H]
@@ -1998,45 +1998,39 @@ class DCVAE:
                 self.d_conv_layers.append(layer)
                 mi = mo
             
-            return self.decode(X)
+            return self.decode(Z)
     
-    def decode(self, X, reuse=None, is_training=True):
-
-    	with tf.variable_scope('encoder') as scope:
-
-    		Z = self.encode(X, reuse=None, is_training=True)
-
-    	with tf.variable_scope('decoder') as scope:
+    def decode(self, Z, reuse=None, is_training=True):
         
-	        #dense layers
-	        output = Z
-	        
-	        for layer in self.d_dense_layers:
-	            output = layer.forward(output, reuse, is_training)
+        #dense layers
+        output = Z
+        
+        for layer in self.d_dense_layers:
+            output = layer.forward(output, reuse, is_training)
 
-	        output = tf.reshape(
-	            output,
-	            [-1, self.d_dims_H[0],self.d_dims_W[0],self.d_sizes['projection']]
-	        )
+        output = tf.reshape(
+            output,
+            [-1, self.d_dims_H[0],self.d_dims_W[0],self.d_sizes['projection']]
+        )
 
-	        if self.d_sizes['bn_after_project']:
-	            output = tf.contrib.layers.batch_norm(
-	            output,
-	            decay=0.9, 
-	            updates_collections=None,
-	            epsilon=1e-5,
-	            scale=True,
-	            is_training=is_training,
-	            reuse=reuse,
-	            scope='bn_after_project'
-	        )        
-	        #passing to fs-convolutional layers   
-	        
-	        for layer in self.d_conv_layers:
+        if self.d_sizes['bn_after_project']:
+            output = tf.contrib.layers.batch_norm(
+            output,
+            decay=0.9, 
+            updates_collections=None,
+            epsilon=1e-5,
+            scale=True,
+            is_training=is_training,
+            reuse=reuse,
+            scope='bn_after_project'
+        )        
+        #passing to fs-convolutional layers   
+        
+        for layer in self.d_conv_layers:
 
-	            output = layer.forward(output, reuse, is_training)
-	            
-	        return output
+            output = layer.forward(output, reuse, is_training)
+            
+        return output
     
     def set_session(self, session):
         
