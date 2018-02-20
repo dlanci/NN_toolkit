@@ -1891,7 +1891,9 @@ class DCVAE:
             #no activation of last layer and need 2
             #times as many units (M means and M stddevs)
             name = 'e_conv_layer_%s' %count
-            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1, f=lambda x: x)
+            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1,
+             f=lambda x: x, w_init=tf.random_normal_initializer())
+            
             self.e_dense_layers.append(last_enc_layer)
             
             return self.encode(X)
