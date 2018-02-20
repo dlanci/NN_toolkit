@@ -3052,12 +3052,12 @@ class DCGAN:
                     
                     w = self.n_W
                     h = self.n_H
-                    samples = samples.reshape(self.batch_size, h, w)
+                    samples = samples.reshape(self.batch_size, w, h)
                     
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
-                        plt.imshow(samples[i].reshape(h,w), cmap='gray')
+                        plt.imshow(samples[i].reshape(w,h), cmap='gray')
                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
                         plt.axis('off')
                     
@@ -3557,12 +3557,12 @@ class resDCGAN:
                     
                     w = self.n_W
                     h = self.n_H
-                    samples = samples.reshape(self.batch_size, h, w)
+                    samples = samples.reshape(self.batch_size, w, h)
                     
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
-                        plt.imshow(samples[i].reshape(h,w), cmap='gray')
+                        plt.imshow(samples[i].reshape(w,h), cmap='gray')
                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
                         plt.axis('off')
                     
