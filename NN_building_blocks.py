@@ -797,7 +797,7 @@ class DeconvBlock(object):
                 self.deconv_layers = []
                 self.block_id=block_id
                 
-                #output shapes has to be a dictionary of [n_W,n_H]
+                #output shapes has to be a dictionary of [n_H,n_W]
 
                 #build the block
                 #main path
