@@ -1723,8 +1723,7 @@ class DVAE:
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run(self.prior_predictive_probs)
 
-
-#check support for rectangular images
+#can't seem to work on mnist
 class DCVAE:
 
     def __init__(self, n_H, n_W, n_C, e_sizes, d_sizes,
@@ -2133,8 +2132,7 @@ class DCVAE:
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run( self.prior_predictive_probs)
 
-#check if works by creating some samples
-#check support for rectangular images
+#can't seem to work on mnist
 class resDCVAE:
 
     def __init__(self, n_H, n_W, n_C, e_sizes, d_sizes,
@@ -2593,8 +2591,7 @@ class resDCVAE:
 
 #class aeCNN: 
 
-#check if works by creating some samples
-#check rectangular images support
+#tested on mnist
 class DCGAN:
     
     def __init__(
@@ -3092,8 +3089,6 @@ class DCGAN:
 
         return one_sample 
 
-
-#debug
 class resDCGAN:
     
     def __init__(
@@ -3546,8 +3541,13 @@ class resDCGAN:
                     (self.g_train_op, self.g_cost),
                     feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
                 )
+
+                _, g_cost3 =  self.session.run(
+                    (self.g_train_op, self.g_cost),
+                    feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
+                )
         
-                g_costs.append((g_cost1 + g_cost2)/2) # just use the avg            
+                g_costs.append((g_cost1 + g_cost2 + g_cost3)/3) # just use the avg            
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
