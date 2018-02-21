@@ -33,7 +33,7 @@ SEED = None
 
 #NETWORK ARCHITECTURES
 
-#classification models
+#CLASSIFICATION MODELS
 
 #untested yet
 class DNN:
@@ -825,36 +825,62 @@ class resCNN:
             for key in conv_sizes:
                 if 'block' in key:
                     print('Residual Network architecture detected')
-                else:
-                    print('Check network architecture')
                 break
             
             self.conv_blocks = []
             #count conv blocks
-            # n_conv_blocks = 0
-            # for key in sizes:
-            #     if 'block' in key:
-            #         n_conv_blocks+=1
+
+            steps=0
+            for key in conv_sizes:
+                if 'conv' in key:
+                    if not 'shortcut' in key:
+                        steps+=1
+                if 'pool' in key:
+                    steps+=1
+
 
             #build convblocks
-            i=0
-            count=0
+            block_n=0
+            layer_n=0
+            pool_n=0
+            
             for key in conv_sizes:
-                count+=1 
+                
                 if 'block' and 'shortcut' in key:
 
-                    conv_block = ConvBlock(i,
+                    conv_block = ConvBlock(block_n,
                                mi, conv_sizes,
                                )
                     self.conv_blocks.append(conv_block)
                     
-                    mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(i)][-1]
+                    mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
                     mi = mo
                     dim_H = conv_block.output_dim(dim_H)
                     dim_W = conv_block.output_dim(dim_W)
-                    i+=1
+                    block_n+=1
+
+                if 'conv_layer' in key:
+
+                    name = 'conv_layer_{0}'.format(layer_n)
+
+                    mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = conv_sizes[key][0]
+
+
+                    conv_layer = ConvLayer(name, mi, mo,
+                                           filter_sz, stride,
+                                           apply_batch_norm, keep_prob,
+                                           act_f, w_init
+                        )
+
+                    self.conv_blocks.append(conv_layer)
+
+                    mi = mo
+                    dim_W = int(np.ceil(float(dim_W) / stride))
+                    dim_H = int(np.ceil(float(dim_H) / stride))
+                    layer_n+=1  
 
                 if 'pool' in key:
+                    pool_n+=1
 
                     if 'max' in key:
 
@@ -877,8 +903,9 @@ class resCNN:
                         
                         dim_W = int(np.ceil(float(dim_W) / stride))
                         dim_H = int(np.ceil(float(dim_H) / stride))
-                   
-
+                    
+            assert steps == pool_n + block_n + layer_n, 'Check conv_sizes keys'
+            count = steps
             mi = mi * dim_W * dim_H
             self.dense_layers = []
 
@@ -1055,7 +1082,7 @@ class resCNN:
             )
         return output
 
-#generative models
+#GENERATIVE MODELS
 
 #tested on mnist
 class DAE:
@@ -2264,38 +2291,65 @@ class resDCVAE:
             dim_H = self.n_H
             dim_W = self.n_W
             
+
             for key in e_sizes:
                 if 'block' in key:
                     print('Residual Network architecture detected')
                     break
-                else:
-                    print('Check network architecture')
-                    break
-
-                
 
             self.e_blocks = []
             #count conv blocks
-
-            n_conv_blocks = 0
+            e_steps = 0
             for key in e_sizes:
-                if 'shortcut' in key:
-                    n_conv_blocks+=1
-            
-            #build conv blocks
-            for i in range(n_conv_blocks):
-            
-                e_block = ConvBlock(i,
+                if 'conv' in key:
+                    if not 'shortcut' in key:
+                         e_steps+=1
+
+            e_block_n=0
+            e_layer_n=0
+                
+            for key in e_sizes:
+                 
+                if 'block' and 'shortcut' in key:
+                
+                    e_block = ConvBlock(e_block_n,
                                mi, e_sizes,
                                )
-                self.e_blocks.append(e_block)
-                mo, _, _, _, _, _, _, = e_sizes['convblock_layer_'+str(i)][-1]
-                mi = mo
-                dim_H=e_block.output_dim(dim_H)
-                dim_W=e_block.output_dim(dim_W)
-        
+                    self.e_blocks.append(e_block)
+                    
+                    mo, _, _, _, _, _, _, = e_sizes['convblock_layer_'+str(e_block_n)][-1]
+                    mi = mo
+                    dim_H = e_block.output_dim(dim_H)
+                    dim_W = e_block.output_dim(dim_W)
+                    e_block_n+=1
+                    
+                
+                if 'conv_layer' in key:
+
+                    name = 'e_conv_layer_{0}'.format(e_layer_n)
+
+                    mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = e_sizes[key][0]
+
+                    e_conv_layer = ConvLayer(name, mi, mo,
+                                           filter_sz, stride,
+                                           apply_batch_norm, keep_prob,
+                                           act_f, w_init
+                        )
+
+                    self.e_blocks.append(e_conv_layer)
+
+                    mi = mo
+                    dim_W = int(np.ceil(float(dim_W) / stride))
+                    dim_H = int(np.ceil(float(dim_H) / stride))
+                    e_layer_n+=1
+            
+            assert e_block_n+e_layer_n==e_steps, '\nCheck keys in d_sizes, \n total convolution steps do not mach sum between convolutional blocks and convolutional layers'
+            
+            count=e_steps
+
             mi = mi * dim_H * dim_W
-            count = i
+
+            #build dense layers
             
             self.e_dense_layers = []
             for mo, apply_batch_norm, keep_prob, act_f, w_init in e_sizes['dense_layers']:
@@ -2303,18 +2357,21 @@ class resDCVAE:
                 name = 'e_dense_layer_%s' %count
                 count +=1
                 
-                layer = DenseLayer(name, mi, mo, 
-                                  apply_batch_norm, keep_prob,
+                layer = DenseLayer(name,mi, mo,
+                                  apply_batch_norm, keep_prob, 
                                   act_f, w_init)
                 mi = mo
                 self.e_dense_layers.append(layer)
-        
-            #no activation of last layer and need 2
-            #times as many units (M means and M stddevs)
-            name = 'e_conv_layer_%s' %count
-            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1, f=lambda x: x)
-            self.e_dense_layers.append(last_enc_layer)
-            self.n_conv_blocks = n_conv_blocks
+            
+            #final logistic layer
+            name = 'e_dense_layer_%s' %count
+            
+            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1,
+             f=lambda x: x, w_init=tf.random_normal_initializer())
+            
+            self.e_dense_layers.append(last_enc_layer)            
+
+            self.e_steps=e_steps
 
             return self.encode(X)
         
@@ -2326,27 +2383,27 @@ class resDCVAE:
         i=0
         for block in self.e_blocks:
             i+=1
-            #print('Convolution_block_%i' %i)
-            #print('Input shape', output.get_shape())
+            # print('Convolution_block_%i' %i)
+            # print('Input shape', output.get_shape())
             output = block.forward(output,
                                      reuse,
                                      is_training)
-            #print('After block shape', output.get_shape())
+            # print('After block shape', output.get_shape())
         
         
         output = tf.contrib.layers.flatten(output)
-        #print('After flatten shape', output.get_shape())
+        # print('After flatten shape', output.get_shape())
 
         i=0
         for layer in self.e_dense_layers:
-            #print('Dense weights %i' %i)
-            #print(layer.W.get_shape())
+            # print('Dense weights %i' %i)
+            # print(layer.W.get_shape())
             output = layer.forward(output,
                                    reuse,
                                    is_training)
             i+=1
-            #print('After dense layer_%i' %i)
-            #print('Shape', output.get_shape())
+            # print('After dense layer_%i' %i)
+            # print('Shape', output.get_shape())
         
         
         #get means and stddev from last encoder layer
@@ -2366,83 +2423,144 @@ class resDCVAE:
         with tf.variable_scope('decoder') as scope:
 
             #dimensions of input
-            dims_W = [self.n_W]
-            dims_H = [self.n_H]
-
-            dim_H = self.n_W
-            dim_W = self.n_W
-
-            mi = self.latent_dims
-            
             #dense layers
             self.d_dense_layers = []
             count = 0
+
+            mi = self.latent_dims
 
             for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
                 name = 'd_dense_layer_%s' %count
                 count += 1
                 
-                layer = DenseLayer(name,mi, mo,
-                                   apply_batch_norm, keep_prob,
-                                   f=act_f, w_init=w_init
+                layer = DenseLayer(
+                    name, mi, mo,
+                    apply_batch_norm, keep_prob,
+                    f=act_f, w_init=w_init
                 )
                 self.d_dense_layers.append(layer)
                 mi = mo
-            
-                        #count deconv blocks
-             
-            #calculate height and width of image at every layer
-            for i in range(self.n_conv_blocks):
                 
-                for _, _, stride, _, _, _, _, in reversed(d_sizes['deconvblock_layer_'+str(i)]):
+            #checking generator architecture
+
+            d_steps = 0
+            for key in d_sizes:
+                if 'deconv' in key:
+                    if not 'shortcut' in key:
+                         d_steps+=1
+            
+            assert d_steps == self.e_steps, '\nUnmatching discriminator/generator architecture'
+            
+
+            d_block_n=0
+            d_layer_n=0
+
+            for key in d_sizes:
+                if 'block' and 'shortcut' in key:
+                    d_block_n+=1
+                if 'deconv_layer' in key:
+                    d_layer_n +=1
+
+            assert d_block_n+d_layer_n==d_steps, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers and convolutional blocks'
+
+            #dimensions of output generated image
+            dims_W = [self.n_W]
+            dims_H = [self.n_H]
+
+            dim_H = self.n_H
+            dim_W = self.n_W
+
+
+            layers_output_sizes={}
+            blocks_output_sizes={}
+
+            for key, item in reversed(list(d_sizes.items())):
+
+                if 'deconv_layer' in key:
+                    
+                    _, _, stride, _, _, _, _, = d_sizes[key][0]
+                    layers_output_sizes[d_layer_n-1]= [dim_H, dim_W]
                     
                     dim_H = int(np.ceil(float(dim_H)/stride))
                     dim_W = int(np.ceil(float(dim_W)/stride))
                     dims_H.append(dim_H)
                     dims_W.append(dim_W)
-            
+                    
+                    d_layer_n -= 1
+
+                  
+                if 'deconvblock_layer' in key:
+                    
+                    for _ ,_ , stride, _, _, _, _, in d_sizes[key]:
+                    
+                        dim_H = int(np.ceil(float(dim_H)/stride))
+                        dim_W = int(np.ceil(float(dim_W)/stride))
+                        dims_H.append(dim_H)
+                        dims_W.append(dim_W)
+                    
+                    blocks_output_sizes[d_block_n-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(d_sizes[key])+1)]
+                    d_block_n -=1
+
             dims_H = list(reversed(dims_H))
             dims_W = list(reversed(dims_W))
 
-
+            #saving for later
             self.d_dims_H = dims_H
             self.d_dims_W = dims_W
 
-
-            #calculate height and width of image at every layer            
             #final dense layer
             mo = d_sizes['projection']*dims_H[0]*dims_W[0]
-            
             name = 'd_dense_layer_%s' %count
-            layer = DenseLayer(name, mi, mo, not d_sizes['bn_after_project'], 1)
-            self.d_dense_layers.append(layer)          
 
-            #input channel number
+            layer = DenseLayer(name, mi, mo, not d_sizes['bn_after_project'], 1)
+            self.d_dense_layers.append(layer)
+
+            #deconvolution input channel number
             mi = d_sizes['projection']
-            
 
             self.d_blocks=[]
 
-            output_sizes={}
-            for i in range(self.n_conv_blocks):
+            block_n=0 #keep count of the block number
+            layer_n=0 #keep count of conv layer number
+            i=0
+            for key in d_sizes:
                 
-                output_sizes[i]=[ [dims_H[j] ,dims_W[j]]  for j in range(1, len(d_sizes['deconvblock_layer_'+str(i)])+1)]            
+                if 'block' and 'shortcut' in key:
+                
+                    d_block = DeconvBlock(block_n,
+                               mi, blocks_output_sizes, d_sizes,
+                               )
+                    self.d_blocks.append(d_block)
                     
+                    mo, _, _, _, _, _, _, = d_sizes['deconvblock_layer_'+str(block_n)][-1]
+                    mi = mo
+                    block_n+=1
+                    count+=1 
+                    i+=1
+                    
+                if 'deconv_layer' in key:
 
-            for i in range(self.n_conv_blocks):
-            
-                name = 'd_block_layer_%s' %i
-                d_block = DeconvBlock(i, 
-                                      mi,
-                                      output_sizes, 
-                                      d_sizes, 
-                )
-            
-                self.d_blocks.append(d_block)
-                mo, _, _, _, _, _, _, = d_sizes['deconvblock_layer_'+str(i)][-1]
-                mi = mo
-                    
+                    name = 'd_conv_layer_{0}'.format(layer_n)
+
+                    mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes[key][0]
+
+                    d_conv_layer = DeconvLayer(
+                        name, mi, mo, layers_output_sizes[layer_n],
+                        filter_sz, stride, apply_batch_norm, keep_prob,
+                        act_f, w_init
+                    )
+                    self.d_blocks.append(d_conv_layer)
+
+                    mi=mo
+                    layer_n+=1
+                    count+=1 
+                    i+=1
+
+            assert i==d_steps, 'Check convolutional layer and block building, steps in building do not coincide with g_steps'
+            assert d_steps==block_n+layer_n, 'Check keys in g_sizes'
+            #saving for later
             self.d_sizes=d_sizes
+
             
             return self.decode(Z)
         
@@ -2568,13 +2686,6 @@ class resDCVAE:
         plt.show()
         
         print('Parameters trained')
-
-    # def sample(self, Z, n):
-    #     samples = self.session.run(
-    #       self.prior_predictive_from_input_probs,
-    #       feed_dict={self.Z_input: Z, self.batch_sz: n}
-    #     )
-    #     return samples
 
     def prior_predictive_with_input(self, Z):
         return self.session.run(

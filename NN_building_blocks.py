@@ -509,7 +509,7 @@ class DeconvLayer(object):
         if not is_training:
             self.keep_prob = 1
         
-        padding_value = 2
+        padding_value = 4
         resized_shape_H = (self.output_shape[0] -1)*self.stride+ self.filter_sz-2*padding_value
         resized_shape_W = (self.output_shape[1] -1)*self.stride+ self.filter_sz-2*padding_value
         
