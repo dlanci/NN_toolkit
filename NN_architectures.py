@@ -3795,7 +3795,7 @@ class resDCGAN:
         return one_sample 
 
 
-#class aeCNN: 
+# class aeDNN: 
 
 # class cycleGAN:
     
