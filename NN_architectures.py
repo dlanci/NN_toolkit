@@ -3095,7 +3095,7 @@ class resDCGAN:
         self, 
         n_H, n_W, n_C,
         d_sizes,g_sizes,
-        lr=LEARNING_RATE, beta1=BETA1,
+        lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
         ):
@@ -3226,7 +3226,7 @@ class resDCGAN:
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         self.d_train_op = tf.train.AdamOptimizer(
-            learning_rate=lr,
+            learning_rate=lr_d,
             beta1=beta1,
         ).minimize(
             self.d_cost,
@@ -3234,7 +3234,7 @@ class resDCGAN:
         )
         
         self.g_train_op = tf.train.AdamOptimizer(
-            learning_rate=lr,
+            learning_rate=lr_g,
             beta1=beta1,
         ).minimize(
             self.g_cost,
