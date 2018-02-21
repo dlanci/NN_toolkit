@@ -3246,7 +3246,8 @@ class resDCGAN:
         self.epochs=epochs
         self.save_sample=save_sample
         self.path=path
-        self.lr = lr
+        self.lr_g = lr_g
+        self.lr_d = lr_d
         
     def build_discriminator(self, X, d_sizes):
         
@@ -3507,7 +3508,7 @@ class resDCGAN:
 
         print('\n ****** \n')
         print('Training residual DCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
 
         for epoch in range(self.epochs):
