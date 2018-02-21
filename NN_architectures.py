@@ -3254,43 +3254,39 @@ class resDCGAN:
             for key in d_sizes:
                 if 'block' in key:
                     print('Residual Network architecture detected')
-
-                else:
-                    print('Check network architecture')
-
-                    
+                    break
 
             self.d_blocks = []
             #count conv blocks
-            n_conv_blocks = 0
+            d_steps = 0
             for key in d_sizes:
-                if 'shortcut' in key:
-                    n_conv_blocks+=1
+                if 'conv' in key:
+                    if not 'shortcut' in key:
+                         d_steps+=1
 
-            block_n=0
-            layer_n=0
-            count=0
+            d_block_n=0
+            d_layer_n=0
+            
 
             for key in d_sizes:
-                count+=1 
-                
+                 
                 if 'block' and 'shortcut' in key:
                 
-                    d_block = ConvBlock(block_n,
+                    d_block = ConvBlock(d_block_n,
                                mi, d_sizes,
                                )
                     self.d_blocks.append(d_block)
                     
-                    mo, _, _, _, _, _, _, = d_sizes['convblock_layer_'+str(block_n)][-1]
+                    mo, _, _, _, _, _, _, = d_sizes['convblock_layer_'+str(d_block_n)][-1]
                     mi = mo
                     dim_H = d_block.output_dim(dim_H)
                     dim_W = d_block.output_dim(dim_W)
-                    block_n+=1
+                    d_block_n+=1
                     
                 
                 if 'conv_layer' in key:
 
-                    name = 'd_conv_layer_{0}'.format(layer_n)
+                    name = 'd_conv_layer_{0}'.format(d_layer_n)
 
                     mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes[key][0]
 
@@ -3306,9 +3302,12 @@ class resDCGAN:
                     mi = mo
                     dim_W = int(np.ceil(float(dim_W) / stride))
                     dim_H = int(np.ceil(float(dim_H) / stride))
-                    layer_n+=1
+                    d_layer_n+=1
             
-        
+            assert d_block_n+d_layer_n==d_steps, '\nCheck keys in d_sizes, \n total convolution steps do not mach sum between convolutional blocks and convolutional layers'
+            
+            count=d_steps
+
             mi = mi * dim_H * dim_W
 
             #build dense layers
@@ -3327,9 +3326,11 @@ class resDCGAN:
             
             #final logistic layer
             name = 'd_dense_layer_%s' %count
-
             self.d_final_layer = DenseLayer(name, mi, 1, False, 1, lambda x: x)
-            self.n_conv_blocks=n_conv_blocks
+            
+
+            self.d_steps=d_steps
+
             return self.d_forward(X)
             
     def d_forward(self, X, reuse = None, is_training=True):
@@ -3374,13 +3375,6 @@ class resDCGAN:
         
         with tf.variable_scope('generator') as scope:
             
-            #dimensions of input
-            dims_W = [self.n_W]
-            dims_H = [self.n_H]
-
-            dim_H = self.n_H
-            dim_W = self.n_W
-            
             #dense layers
             self.g_dense_layers = []
             count = 0
@@ -3398,111 +3392,127 @@ class resDCGAN:
                 )
                 self.g_dense_layers.append(layer)
                 mi = mo
+                
+            #checking generator architecture
 
-            
+            g_steps = 0
             for key in g_sizes:
-                  
-                if 'deconv_layer' in key:
-                    print(key)
-                    _, _, stride, _, _, _, _, = g_sizes[key][0]
-
-                    dim_H = int(np.ceil(float(dim_H)/stride))
-                    dim_W = int(np.ceil(float(dim_W)/stride))
-                    dims_H.append(dim_H)
-                    dims_W.append(dim_W)
-
-                    
-                if 'block' and 'shortcut' in key:
-                    print(key)
-                    _ ,_ , stride, _, _, _, = g_sizes[key][0]
-                    
-                    dim_H = int(np.ceil(float(dim_H)/stride))
-                    dim_W = int(np.ceil(float(dim_W)/stride))
-                    dims_H.append(dim_H)
-                    dims_W.append(dim_W)
+                if 'deconv' in key:
+                    if not 'shortcut' in key:
+                         g_steps+=1
             
+            assert g_steps == self.d_steps, '\nUnmatching discriminator/generator architecture'
+            
+
+            g_block_n=0
+            g_layer_n=0
+
+            for key in g_sizes:
+                if 'block' and 'shortcut' in key:
+                    g_block_n+=1
+                if 'deconv_layer' in key:
+                    g_layer_n +=1
+
+            assert g_block_n+g_layer_n==g_steps, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers and convolutional blocks'
+
+            #dimensions of output generated image
+            dims_W = [self.n_W]
+            dims_H = [self.n_H]
+
+            dim_H = self.n_H
+            dim_W = self.n_W
+
+
+            layers_output_sizes={}
+            blocks_output_sizes={}
+
+            for key, item in reversed(list(g_sizes.items())):
+
+                if 'deconv_layer' in key:
+                    
+                    
+                    _, _, stride, _, _, _, _, = g_sizes[key][0]
+                    layers_output_sizes[g_layer_n-1]= [dim_H, dim_W]
+                    
+                    dim_H = int(np.ceil(float(dim_H)/stride))
+                    dim_W = int(np.ceil(float(dim_W)/stride))
+                    dims_H.append(dim_H)
+                    dims_W.append(dim_W)
+                    
+                    g_layer_n -= 1
+
+                  
+                if 'deconvblock_layer' in key:
+                    
+                    
+                    for _ ,_ , stride, _, _, _, _, in g_sizes[key]:
+                    
+                        dim_H = int(np.ceil(float(dim_H)/stride))
+                        dim_W = int(np.ceil(float(dim_W)/stride))
+                        dims_H.append(dim_H)
+                        dims_W.append(dim_W)
+                    
+                    blocks_output_sizes[g_block_n-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
+                    g_block_n -=1
+
             dims_H = list(reversed(dims_H))
             dims_W = list(reversed(dims_W))
 
+            #saving for later
             self.g_dims_H = dims_H
             self.g_dims_W = dims_W
-            
+
             #final dense layer
             mo = g_sizes['projection']*dims_H[0]*dims_W[0]
-            
             name = 'g_dense_layer_%s' %count
 
             layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
             self.g_dense_layers.append(layer)
 
-            self.g_blocks=[]
-
-            #input channel number
+            #deconvolution input channel number
             mi = g_sizes['projection']
 
-            output_sizes={}
-            for i in range(self.n_conv_blocks):
-                
-                output_sizes[i]=[ [dims_H[j] ,dims_W[j]]  for j in range(1, len(g_sizes['deconvblock_layer_'+str(i)])+1)]            
-                    
-            block_n=0
-            layer_n=0
+            self.g_blocks=[]
 
+            block_n=0 #keep count of the block number
+            layer_n=0 #keep count of conv layer number
+            i=0
             for key in g_sizes:
-                count+=1 
                 
                 if 'block' and 'shortcut' in key:
                 
                     g_block = DeconvBlock(block_n,
-                               mi, output_sizes, g_sizes,
+                               mi, blocks_output_sizes, g_sizes,
                                )
                     self.g_blocks.append(g_block)
                     
-                    mo, _, _, _, _, _, _, = g_sizes['convblock_layer_'+str(block_n)][-1]
+                    mo, _, _, _, _, _, _, = g_sizes['deconvblock_layer_'+str(block_n)][-1]
                     mi = mo
                     block_n+=1
+                    count+=1 
+                    i+=1
                     
-            activation_functions = []
-
-            for _, _, _, _, _, act_f, _, in g_sizes['conv_layers'][:-1]:
-                activation_functions.append(act_f)
-
-            activation_functions.append(g_sizes['output_activation'])
-            
-            for i in range(len(g_sizes['conv_layers'])):
-                name = 'fs_convlayer_%s' %i
-                
-                mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = g_sizes['conv_layers'][i]
-                f = activation_functions[i]
-                
-                layer = DeconvLayer(
-                  name, mi, mo, [dims_H[i+1], dims_W[i+1]],
-                  filter_sz, stride, apply_batch_norm, keep_prob,
-                  f, w_init
-                )
-
-                self.g_convlayers.append(layer)
-                mi = mo
-
                 if 'deconv_layer' in key:
 
                     name = 'g_conv_layer_{0}'.format(layer_n)
 
                     mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
 
-
-                    g_conv_layer = DeconvLayer(name, mi, mo,
-                                           filter_sz, stride,
-                                           apply_batch_norm, keep_prob,
-                                           act_f, w_init
-                        )
-
+                    g_conv_layer = DeconvLayer(
+                        name, mi, mo, layers_output_sizes[layer_n],
+                        filter_sz, stride, apply_batch_norm, keep_prob,
+                        act_f, w_init
+                    )
                     self.g_blocks.append(g_conv_layer)
 
-                    mi = mo
+                    mi=mo
                     layer_n+=1
+                    count+=1 
+                    i+=1
 
-                    
+            assert i==g_steps, 'Check convolutional layer and block building, steps in building do not coincide with g_steps'
+            assert g_steps==block_n+layer_n, 'Check keys in g_sizes'
+            #saving for later
             self.g_sizes=g_sizes
             
             return self.g_forward(Z)
