@@ -3537,13 +3537,13 @@ class resDCGAN:
                     feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
                 )
                 
-                # _, g_cost2 =  self.session.run(
-                #     (self.g_train_op, self.g_cost),
-                #     feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
-                # )
+                _, g_cost2 =  self.session.run(
+                    (self.g_train_op, self.g_cost),
+                    feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
+                )
 
         
-                g_costs.append((g_cost1)) # just use the avg            
+                g_costs.append((g_cost1+g_cost2)/2) # just use the avg            
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
