@@ -2909,7 +2909,7 @@ class DCGAN:
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
                   filter_sz, stride, apply_batch_norm, keep_prob,
-                  f, w_init
+                  act_f, w_init
                 )
 
                 self.g_convlayers.append(layer)
