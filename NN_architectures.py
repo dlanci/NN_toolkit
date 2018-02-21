@@ -2600,7 +2600,7 @@ class DCGAN:
         self,
         n_H, n_W, n_C,
         d_sizes,g_sizes,
-        lr=LEARNING_RATE, beta1=BETA1,
+        lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
         ):
@@ -2727,7 +2727,7 @@ class DCGAN:
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         self.d_train_op = tf.train.AdamOptimizer(
-            learning_rate=lr,
+            learning_rate=lr_d,
             beta1=beta1,
         ).minimize(
             self.d_cost,
@@ -2735,7 +2735,7 @@ class DCGAN:
         )
         
         self.g_train_op = tf.train.AdamOptimizer(
-            learning_rate=lr,
+            learning_rate=lr_g,
             beta1=beta1,
         ).minimize(
             self.g_cost,
@@ -2746,7 +2746,8 @@ class DCGAN:
         self.epochs=epochs
         self.save_sample=save_sample
         self.path=path
-        self.lr = lr
+        self.lr_g = lr_g
+        self.lr_d = lr_d
         
     def build_discriminator(self, X, d_sizes):
         
@@ -3004,7 +3005,7 @@ class DCGAN:
 
         print('\n ****** \n')
         print('Training DCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
 
         for epoch in range(self.epochs):
