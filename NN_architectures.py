@@ -22,6 +22,8 @@ def lrelu(x, alpha=0.1):
 
 # some dummy constants
 LEARNING_RATE = None
+LEARNING_RATE_D = None
+LEARNING_RATE_G = None
 BETA1 = None
 BATCH_SIZE = None
 EPOCHS = None
