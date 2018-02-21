@@ -2365,7 +2365,7 @@ class resDCVAE:
             
             #final logistic layer
             name = 'e_dense_layer_%s' %count
-            
+
             last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1,
              f=lambda x: x, w_init=tf.random_normal_initializer())
             
@@ -2700,8 +2700,6 @@ class resDCVAE:
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run(self.prior_predictive_probs)
-
-#class aeCNN: 
 
 #tested on mnist
 class DCGAN:
@@ -3796,6 +3794,8 @@ class resDCGAN:
 
         return one_sample 
 
+
+#class aeCNN: 
 
 # class cycleGAN:
     
