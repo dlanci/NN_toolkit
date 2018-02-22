@@ -1745,7 +1745,7 @@ class DVAE:
 
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
-        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
+        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
@@ -2146,7 +2146,7 @@ class DCVAE:
 
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
-        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
+        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
