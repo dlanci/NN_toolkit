@@ -1132,7 +1132,7 @@ class DAE:
         self, dim, e_sizes, d_sizes, an_id=0, 
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, img_height=None, img_width=None
         ):
 
 
@@ -1141,6 +1141,9 @@ class DAE:
         self.latent_dims=e_sizes['z']
         self.e_sizes=e_sizes
         self.d_sizes=d_sizes
+
+        self.img_height=img_height
+        self.img_width=img_width
 
         self.e_last_act_f = e_sizes['last_act_f']
         self.d_last_act_f = d_sizes['last_act_f']
@@ -1421,7 +1424,7 @@ class DVAE:
         self, dim, e_sizes, d_sizes, an_id=0, 
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, img_height=None, img_width=None
         ):
         """
         Positional args
@@ -1433,6 +1436,8 @@ class DVAE:
         self.dim = dim
         self.e_sizes=e_sizes
         self.d_sizes=d_sizes
+        self.img_height=img_height
+        self.img_width=img_width
 
         self.latent_dims=e_sizes['z']
         self.d_last_act_f = d_sizes['last_act_f']
@@ -1711,7 +1716,7 @@ class DVAE:
                 costs.append(c)
 
                 total_iters += 1
-
+                
                 if total_iters % self.save_sample ==0:
                     print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
                     print('Saving a sample...')
@@ -1720,7 +1725,7 @@ class DVAE:
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
-                        plt.imshow(probs[i].reshape(28,28), cmap='gray')
+                        plt.imshow(probs[i].reshape(self.img_height,self.img_width), cmap='gray')
                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
                         plt.axis('off')
                         
@@ -1745,7 +1750,7 @@ class DVAE:
 
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
-        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
+        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
@@ -2003,17 +2008,25 @@ class DCVAE:
             mi = d_sizes['projection']
             self.d_conv_layers=[]
             
+
+            activation_functions = []
+
+            for _, _, _, _, _, act_f, _ in d_sizes['conv_layers'][:-1]:
+                activation_functions.append(act_f)
+
+            activation_functions.append(d_sizes['output_activation'])
             
             for i in range(len(d_sizes['conv_layers'])):
                 name = 'fs_convlayer_%s' %i
                 
-                mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes['conv_layers'][i]
+                mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = d_sizes['conv_layers'][i]
+                f = activation_functions[i]
                 
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
                   filter_sz, stride,
                   apply_batch_norm, keep_prob, 
-                  act_f, w_init
+                  f, w_init
                 )
 
                 self.d_conv_layers.append(layer)
@@ -2146,7 +2159,7 @@ class DCVAE:
 
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
-        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
+        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
 
     def prior_predictive_sample_with_probs(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
