@@ -2003,25 +2003,18 @@ class DCVAE:
             mi = d_sizes['projection']
             self.d_conv_layers=[]
             
-
-            activation_functions = []
-
-            for _, _, _, _, _, act_f, _ in d_sizes['conv_layers'][:-1]:
-                activation_functions.append(act_f)
-
-            activation_functions.append(d_sizes['output_activation'])
             
             for i in range(len(d_sizes['conv_layers'])):
                 name = 'fs_convlayer_%s' %i
                 
-                mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = d_sizes['conv_layers'][i]
+                mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes['conv_layers'][i]
                 f = activation_functions[i]
                 
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
                   filter_sz, stride,
                   apply_batch_norm, keep_prob, 
-                  f, w_init
+                  act_f, w_init
                 )
 
                 self.d_conv_layers.append(layer)
