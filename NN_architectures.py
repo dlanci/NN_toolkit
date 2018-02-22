@@ -2008,7 +2008,6 @@ class DCVAE:
                 name = 'fs_convlayer_%s' %i
                 
                 mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes['conv_layers'][i]
-                f = activation_functions[i]
                 
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
