@@ -1462,7 +1462,8 @@ class DVAE:
 
         self.X_hat_distribution = Bernoulli(logits=logits)
 
-        #posterior predictive
+        # posterior predictive
+        # take samples from X_hat
         
         with tf.variable_scope('encoder') as scope:
             scope.reuse_variables
@@ -1480,8 +1481,9 @@ class DVAE:
         self.posterior_predictive = self.posterior_predictive_dist.sample()
         self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
 
-
-        #prior predictive from prob
+        # prior predictive 
+        # take sample from a Z ~ N(0, 1)
+        # and put it through the decoder
 
         standard_normal = Normal(
           loc=np.zeros(self.latent_dims, dtype=np.float32),
@@ -1501,21 +1503,6 @@ class DVAE:
         self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
 
 
-        # prior predictive from input 
-
-        self.Z_input = tf.placeholder(tf.float32, shape=(None, self.latent_dims))
-        
-        with tf.variable_scope('decoder') as scope:
-            scope.reuse_variables()    
-            logits_from_input = self.decode(
-                self.Z_input, reuse=True, is_training=False,
-            )
-        
-        input_predictive_dist = Bernoulli(logits=logits_from_input)
-        self.prior_predictive_from_input= input_predictive_dist.sample()
-        self.prior_predictive_from_input_probs = tf.nn.sigmoid(logits_from_input)
-
-        
         #cost
         kl = tf.reduce_sum(
             tf.contrib.distributions.kl_divergence(
@@ -1545,27 +1532,27 @@ class DVAE:
 
         #test time
 
-        self.X_input = tf.placeholder(
-                tf.float32,
-                shape = (None, self.dim),
-                name='X_input'
-            )
+        # self.X_input = tf.placeholder(
+        #         tf.float32,
+        #         shape = (None, self.dim),
+        #         name='X_input'
+        #     )
 
-        #encode at test time
+        # #encode at test time
 
-        with tf.variable_scope('encoder') as scope:
-            scope.reuse_variables()
-            self.Z_input = self.encode(
-                self.X_input, reuse=True, is_training=False
-            )
-        #decode from encoded at test time
+        # with tf.variable_scope('encoder') as scope:
+        #     scope.reuse_variables()
+        #     self.Z_input = self.encode(
+        #         self.X_input, reuse=True, is_training=False
+        #     )
+        # #decode from encoded at test time
 
-        with tf.variable_scope('decoder') as scope:
-            scope.reuse_variables()
-            X_decoded = self.decode(
-                self.Z_input, reuse=True, is_training=False
-                )
-            self.X_decoded = tf.nn.sigmoid(X_decoded)
+        # with tf.variable_scope('decoder') as scope:
+        #     scope.reuse_variables()
+        #     X_decoded = self.decode(
+        #         self.Z_input, reuse=True, is_training=False
+        #         )
+        #     self.X_decoded = tf.nn.sigmoid(X_decoded)
 
         #saving for later
         self.lr = lr
@@ -1749,21 +1736,15 @@ class DVAE:
         
         print('Parameters trained')
 
-    def prior_predictive_with_input(self, Z):
-        return self.session.run(
-          self.prior_predictive_from_input_probs,
-          feed_dict={self.Z_input: Z}
-        )
-
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
         return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
 
-    def prior_predictive_sample_with_probs(self):
+    def prior_predictive_sample(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
         return self.session.run(self.prior_predictive_probs)
 
-#can't seem to work on mnist
+#tested on mnist
 class DCVAE:
 
     def __init__(self, n_H, n_W, n_C, e_sizes, d_sizes,
