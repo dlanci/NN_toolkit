@@ -1440,7 +1440,7 @@ class DVAE:
         self.img_width=img_width
 
         self.latent_dims=e_sizes['z']
-        self.d_last_act_f = d_sizes['last_act_f']
+        #self.d_last_act_f = d_sizes['last_act_f']
 
         self.X = tf.placeholder(
                 tf.float32,
@@ -1523,7 +1523,14 @@ class DVAE:
                 standard_normal),
             1
         )
-        
+
+        # equivalent
+        # expected_log_likelihood = -tf.nn.sigmoid_cross_entropy_with_logits(
+        #   labels=self.X,
+        #   logits=posterior_predictive_logits
+        # )
+        # expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
+    
         expected_log_likelihood = tf.reduce_sum(
               self.X_hat_distribution.log_prob(self.X),
               1
@@ -1592,7 +1599,7 @@ class DVAE:
             name = 'layer_{0}'.format(count)
 
             last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims,
-                False, 1, f=lambda x:x, w_init=tf.random_normal_initializer())
+                False, 1, f=lambda x:x, w_init=e_sizes['last_layer_weight_init'])
 
             self.e_layers.append(last_enc_layer)
 
@@ -1636,7 +1643,7 @@ class DVAE:
             name = 'layer_{0}'.format(count)
 
             last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
-                f=lambda x:x, w_init=tf.random_normal_initializer(stddev=0.02)
+                f=lambda x:x, w_init=d_sizes['last_layer_weight_init']
                 )
 
             self.d_layers.append(last_dec_layer)
