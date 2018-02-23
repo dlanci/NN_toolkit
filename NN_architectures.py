@@ -3747,509 +3747,511 @@ class resDCGAN:
 
         return one_sample 
 
+class Discriminator():
 
-# class aeDNN: 
+    def __init__(self, X, d_sizes, name):
 
-# class cycleGAN:
-    
-#     def __init__(
+        _, dim_H, dim_W, mi = X.get_shape().as_list()
 
-#         self, 
-#         n_H, n_W, n_C,
-#         d_sizes,g_sizes,
 
-#         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
-#         batch_size=BATCH_SIZE, epochs=EPOCHS,
-#         save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        for key in d_sizes:
+            if not 'block' in key:
+                print('Convolutional Network architecture detected')
+            else:
+                print('Check network architecture')
+            break
 
-#         ):
+        with tf.variable_scope('discriminator_'+name) as scope:
+            #building discriminator convolutional layers
 
-#         """
-
-#         Positional arguments:
-#             - height of image
-#             - width of image
-#             - number of channels of input image
-#             - discriminator sizes
-
-#                 a python dict of the kind
-#                     d_sizes = { 'conv_layers':[(n_c+1, kernel, stride, apply_batch_norm, weight initializer, act_f),
-#                                                    (,,,,),
-#                                                    ],
-#                                 'dense_layers':[(n_o, apply_bn, weight_init, act_f)]
-#                                 }
-#             - generator sizes
-
-#                 a python dictionary of the kind
-
-#                     g_sizes = { 
-#                                 'z':latent_space_dim,
-#                                 'projection': int,
-#                                 'bn_after_project':bool
-
-#                                 'conv_layers':[(n_c+1, kernel, stride, apply_batch_norm, weight initializer, act_f),
-#                                                    (,,,,),
-#                                                    ],
-#                                 'dense_layers':[(n_o, apply_bn, weight_init, act_f)]
-#                                 'activation':function
-#                                 }
-
-#         Keyword arguments:
-
-#             - lr = LEARNING_RATE (float32)
-#             - beta1 = ema parameter for adam opt (float32)
-#             - batch_size (int)
-#             - save_sample = after how many batches iterations to save a sample (int)
-#             - path = relative path for saving samples
-
-#         """
-
-#         self.n_H = n_H
-#         self.n_W = n_W
-#         self.n_C = n_C
-        
-#         self.latent_dims = g_sizes['z']
-        
-#         #input data
-        
-#         self.X = tf.placeholder(
-#             tf.float32,
-#             shape=(None, 
-#                    n_H, n_W, n_C),
-#             name='X',
-#         )
-        
-#         self.Z = tf.placeholder(
-#             tf.float32,
-#             shape=(None, 
-#                    self.latent_dims),
-#             name='Z'    
-#         )
-
-#         self.batch_sz = tf.placeholder(
-#             tf.int32, 
-#             shape=(), 
-#             name='batch_sz'
-#         )
-        
-#         logits = self.build_discriminator(self.X, d_sizes)
-        
-#         self.sample_images = self.build_generator(self.Z, g_sizes)
-        
-#         # get sample logits
-#         with tf.variable_scope('discriminator') as scope:
-#             scope.reuse_variables()
-#             sample_logits = self.d_forward(self.sample_images, reuse=True)
+            self.d_conv_layers =[]
+            count=0
+            for mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['conv_layers']:
                 
-#         # get sample images for test time
-#         with tf.variable_scope('generator') as scope:
-#             scope.reuse_variables()
-#             self.sample_images_test = self.g_forward(
-#                 self.Z, reuse=True, is_training=False
-#             )
-            
-#         #cost building
-        
-#         #Discriminator cost
-#         self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
-#             logits=logits,
-#             labels=tf.ones_like(logits)
-#         )
-        
-#         self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
-#             logits=sample_logits,
-#             labels=tf.zeros_like(sample_logits)
-#         )
-        
-#         self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
-        
-#         #Generator cost
-#         self.g_cost = tf.reduce_mean(
-#             tf.nn.sigmoid_cross_entropy_with_logits(
-#                 logits=sample_logits,
-#                 labels=tf.ones_like(sample_logits)
-#             )
-#         )
-        
-#         #Measure accuracy of the discriminator
+                # make up a name - used for get_variable
+                name = "d_conv_layer_%s" % count
+                print(name)
+                count += 1
 
-#         real_predictions = tf.cast(logits>0,tf.float32)
-#         fake_predictions = tf.cast(sample_logits<0,tf.float32)
-        
-#         num_predictions=2.0*batch_size
-#         num_correct = tf.reduce_sum(real_predictions)+tf.reduce_sum(fake_predictions)
-        
-#         self.d_accuracy = num_correct/num_predictions
-        
-#         #optimizers
-#         self.d_params =[t for t in tf.trainable_variables() if t.name.startswith('d')]
-#         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
-        
-#         self.d_train_op = tf.train.AdamOptimizer(
-#             learning_rate=lr_d,
-#             beta1=beta1,
-#         ).minimize(
-#             self.d_cost,
-#             var_list=self.d_params
-#         )
-        
-#         self.g_train_op = tf.train.AdamOptimizer(
-#             learning_rate=lr_g,
-#             beta1=beta1,
-#         ).minimize(
-#             self.g_cost,
-#             var_list=self.g_params
-#         )
+                layer = ConvLayer(name, mi, mo, 
+                                  filter_sz, stride, 
+                                  apply_batch_norm, keep_prob,
+                                  act_f, w_init)
 
-#         self.batch_size=batch_size
-#         self.epochs=epochs
-#         self.save_sample=save_sample
-#         self.path=path
-#         self.lr_g = lr_g
-#         self.lr_d = lr_d
-        
-#     def build_discriminator(self, X, d_sizes):
-        
-#         with tf.variable_scope('discriminator') as scope:
-            
-#             #dimensions of input
-#             mi = self.n_C
-#             dim_H = self.n_H
-#             dim_W = self.n_W
-            
-#             for key in d_sizes:
-#                 if not 'block' in key:
-#                     print('Convolutional Network architecture detected')
-#                 else:
-#                     print('Check network architecture')
-#                 break
-            
-#             self.d_convlayers =[]
-#             count=0
+                self.d_conv_layers.append(layer)
+                mi = mo
+                dim_H = int(np.ceil(float(dim_H) / stride))
+                dim_W = int(np.ceil(float(dim_W) / stride))
+                    
+            mi = mi * dim_H * dim_W
 
-#             #building discriminator convolutional layers
-            
-#             for mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['conv_layers']:
+                #building discriminator dense layers
+
+            self.d_dense_layers = []
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
                 
-#                 # make up a name - used for get_variable
-#                 name = "d_convlayer_%s" % count
-#                 count += 1
-
-#                 layer = ConvLayer(name, mi, mo, 
-#                                   filter_sz, stride, 
-#                                   apply_batch_norm, keep_prob,
-#                                   act_f, w_init)
-
-#                 self.d_convlayers.append(layer)
-#                 mi = mo
-#                 dim_H = int(np.ceil(float(dim_H) / stride))
-#                 dim_W = int(np.ceil(float(dim_W) / stride))
+                name = 'd_dense_layer_%s' %count
+                print(name)
+                count +=1
                 
-#             mi = mi * dim_H * dim_W
-
-#             #building discriminator dense layers
-            
-#             self.d_dense_layers = []
-#             for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
+                layer = DenseLayer(name, mi, mo,
+                                  apply_batch_norm, keep_prob,
+                                  act_f, w_init)
+                mi = mo
+                self.d_dense_layers.append(layer)
                 
-#                 name = 'd_dense_layer_%s' %count
-#                 count +=1
-                
-#                 layer = DenseLayer(name, mi, mo,
-#                                   apply_batch_norm, keep_prob,
-#                                   act_f, w_init)
-#                 mi = mo
-#                 self.d_dense_layers.append(layer)
-            
-#             #final logistic layer
-#             name = 'd_dense_layer_%s' %count
+                #final logistic layer
 
-#             self.d_final_layer = DenseLayer(name, mi, 1, 
-#                                             False, 1, 
-#                                             lambda x: x)
+            name = 'd_dense_layer_%s' %count
+            print(name)
+            self.d_final_layer = DenseLayer(name, mi, 1, 
+                                                False, 1, 
+                                                lambda x: x)
             
-#             return self.d_forward(X)
-            
-#     def d_forward(self, X, reuse = None, is_training=True):
+    def d_forward(self, X, reuse = None, is_training=True):
 
-#             print('Convolution')
+            print('Convolution')
 
-#             output = X
-#             print('Input for convolution shape ', X.get_shape())
-#             i=0
-#             for layer in self.d_convlayers:
-#                 i+=1
-#                 # print('Convolution_layer_%i' %i)
-#                 # print('Input shape', output.get_shape())
-#                 output = layer.forward(output,
-#                                      reuse, 
-#                                      is_training)
-#                 #print('After convolution shape', output.get_shape())
+            output = X
+            print('Input for convolution shape ', X.get_shape())
+            i=0
+            for layer in self.d_conv_layers:
+                i+=1
+                # print('Convolution_layer_%i' %i)
+                # print('Input shape', output.get_shape())
+                output = layer.forward(output,
+                                     reuse, 
+                                     is_training)
+                #print('After convolution shape', output.get_shape())
             
-#             output = tf.contrib.layers.flatten(output)
-#             #print('After flatten shape', output.get_shape())
-#             i=0
-#             for layer in self.d_dense_layers:
-#                 #print('Dense weights %i' %i)
-#                 print(layer.W.get_shape())
-#                 output = layer.forward(output,
-#                                        reuse,
-#                                        is_training)
-#                 i+=1
-#                 #print('After dense layer_%i' %i)
-#                 #print('Shape', output.get_shape())
+            output = tf.contrib.layers.flatten(output)
+            #print('After flatten shape', output.get_shape())
+            i=0
+            for layer in self.d_dense_layers:
+                #print('Dense weights %i' %i)
+                print(layer.W.get_shape())
+                output = layer.forward(output,
+                                       reuse,
+                                       is_training)
+                i+=1
+                #print('After dense layer_%i' %i)
+                #print('Shape', output.get_shape())
   
-#             logits = self.d_final_layer.forward(output, 
-#                                                 reuse,
-#                                                 is_training)
-#             print('Logits shape', logits.get_shape())
-#             return logits
-        
-#     def build_generator(self, Z, g_sizes):
-        
-#         with tf.variable_scope('generator') as scope:
+            logits = self.d_final_layer.forward(output, 
+                                                reuse,
+                                                is_training)
+            print('Logits shape', logits.get_shape())
+            return logits
+
+class Generator():
+
+    def __init__(self, Z, dim_H, dim_W, g_sizes, name):
+
+        #output images size better way to pass it?
+
+        #dimensions of input
+        latent_dims = g_sizes['z']
+        dims_H =[dim_H]
+        dims_W =[dim_W]
+
+        mi = latent_dims
+
+        with tf.variable_scope('generator_'+name) as scope:
             
-#             #dimensions of input
-#             dims_H =[self.n_H]
-#             dims_W =[self.n_W]
+            #building generator dense layers
+            self.g_dense_layers = []
+            count = 0
 
-#             dim_H = self.n_H
-#             dim_W = self.n_W
+            for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
+                name = 'g_dense_layer_%s' %count
+                print(name)
+                count += 1
+                layer = DenseLayer(name, mi, mo, 
+                                    apply_batch_norm, keep_prob,
+                                    f=act_f , w_init=w_init
+                                    )
 
-#             mi = self.latent_dims
-            
-#             #building generator dense layers
-#             self.g_dense_layers = []
-#             count = 0
-
-#             for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
-#                 name = 'g_dense_layer_%s' %count
-#                 count += 1
+                self.g_dense_layers.append(layer)
+                mi = mo
                 
-#                 layer = DenseLayer(name, mi, mo, 
-#                                     apply_batch_norm, keep_prob,
-#                                     f=act_f , w_init=w_init
-#                                     )
-
-#                 self.g_dense_layers.append(layer)
-#                 mi = mo
-
-#             #deconvolutional layers
+                
+            #deconvolutional layers
         
-#             for _, _, stride, _, _, _, _ in reversed(g_sizes['conv_layers']):
+            for _, _, stride, _, _, _, _ in reversed(g_sizes['conv_layers']):
                 
-#                 dim_H = int(np.ceil(float(dim_H)/stride))
-#                 dim_W = int(np.ceil(float(dim_W)/stride))
+                dim_H = int(np.ceil(float(dim_H)/stride))
+                dim_W = int(np.ceil(float(dim_W)/stride))
                 
-#                 dims_H.append(dim_H)
-#                 dims_W.append(dim_W)
+                dims_H.append(dim_H)
+                dims_W.append(dim_W)
     
-#             dims_H = list(reversed(dims_H))
-#             dims_W = list(reversed(dims_W))
-#             self.g_dims_H = dims_H
-#             self.g_dims_W = dims_W
+            dims_H = list(reversed(dims_H))
+            dims_W = list(reversed(dims_W))
+            self.g_dims_H = dims_H
+            self.g_dims_W = dims_W
 
             
-#             mo = g_sizes['projection']*dims_H[0]*dims_W[0]
+            mo = g_sizes['projection']*dims_H[0]*dims_W[0]
         
-#             name = 'g_dense_layer_%s' %count
-#             layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
-#             self.g_dense_layers.append(layer)
+            name = 'g_dense_layer_%s' %count
+            count+=1
+            print(name)
+            self.g_final_layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
+            # self.g_dense_layers.append(layer)
             
             
-#             mi = g_sizes['projection']
-#             self.g_convlayers=[]
+            mi = g_sizes['projection']
+            self.g_conv_layers=[]
             
-#             #num_relus = len(g_sizes['conv_layers']) - 1
-#             activation_functions = []
-
-#             for _, _, _, _, _, act_f, _, in g_sizes['conv_layers'][:-1]:
-#                 activation_functions.append(act_f)
-
-#             activation_functions.append(g_sizes['output_activation'])
             
-#             for i in range(len(g_sizes['conv_layers'])):
-#                 name = 'fs_convlayer_%s' %i
+            for i in range(len(g_sizes['conv_layers'])):
+                name = 'g_conv_layer_%s' %count
+                count +=1
+                print(name)
+                mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes['conv_layers'][i]
                 
-#                 mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = g_sizes['conv_layers'][i]
-#                 f = activation_functions[i]
+                layer = DeconvLayer(
+                  name, mi, mo, [dims_H[i+1], dims_W[i+1]],
+                  filter_sz, stride, apply_batch_norm, keep_prob,
+                  act_f, w_init
+                )
+
+                self.g_conv_layers.append(layer)
+                mi = mo
                 
-#                 layer = DeconvLayer(
-#                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
-#                   filter_sz, stride, apply_batch_norm, keep_prob,
-#                   f, w_init
-#                 )
+            self.g_sizes=g_sizes
+   
+    def g_forward(self, Z, reuse=None, is_training=True):
 
-#                 self.g_convlayers.append(layer)
-#                 mi = mo
-                
-#             self.g_sizes=g_sizes
+        print('Deconvolution')
+        #dense layers
+
+        output = Z
+        print('Input for deconvolution shape', Z.get_shape())
+        i=0
+        for layer in self.g_dense_layers:
+            print(i)
+            output = layer.forward(output, reuse, is_training)
+            # print('After dense layer %i' %i)
+            # print('shape: ', output.get_shape())
+            i+=1
+
+        output = self.g_final_layer.forward(output, reuse, is_training)
+
+        output = tf.reshape(
+            output,
             
-#             return self.g_forward(Z)
+            [-1, self.g_dims_H[0], self.g_dims_W[0], self.g_sizes['projection']]
         
-#     def g_forward(self, Z, reuse=None, is_training=True):
+        )
 
-#         print('Deconvolution')
-#         #dense layers
+        # print('Reshaped output after projection', output.get_shape())
 
-#         output = Z
-#         print('Input for deconvolution shape', Z.get_shape())
-#         i=0
-#         for layer in self.g_dense_layers:
-#             i+=1
-#             output = layer.forward(output, reuse, is_training)
-#             # print('After dense layer %i' %i)
-#             # print('shape: ', output.get_shape())
-        
-#         output = tf.reshape(
-#             output,
-            
-#             [-1, self.g_dims_H[0], self.g_dims_W[0], self.g_sizes['projection']]
-        
-#         )
-
-#         # print('Reshaped output after projection', output.get_shape())
-
-#         if self.g_sizes['bn_after_project']:
-#             output = tf.contrib.layers.batch_norm(
-#             output,
-#             decay=0.9, 
-#             updates_collections=None,
-#             epsilon=1e-5,
-#             scale=True,
-#             is_training=is_training,
-#             reuse=reuse,
-#             scope='bn_after_project'
-#         )
-#         # passing to deconv blocks
+        if self.g_sizes['bn_after_project']:
+            output = tf.contrib.layers.batch_norm(
+            output,
+            decay=0.9, 
+            updates_collections=None,
+            epsilon=1e-5,
+            scale=True,
+            is_training=is_training,
+            reuse=reuse,
+            scope='bn_after_project'
+        )
+        # passing to deconv blocks
 
 
-#         i=0
-#         for layer in self.g_convlayers:
-#             i+=1
-#             output = layer.forward(output, reuse, is_training)
-#             # print('After deconvolutional layer %i' %i)
-#             # print('shape: ', output.get_shape())
+        i=0
+        for layer in self.g_conv_layers:
+            i+=1
+            output = layer.forward(output, reuse, is_training)
+            # print('After deconvolutional layer %i' %i)
+            # print('shape: ', output.get_shape())
 
 
-#         print('Deconvoluted output shape', output.get_shape())
-#         return output
+        print('Deconvoluted output shape', output.get_shape())
+        return output
+
+class modular_DCGAN:
     
-#     def set_session(self, session):
+    def __init__(
+        self,
+        n_H, n_W, n_C,
+        d_sizes,g_sizes,
+        lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
+        batch_size=BATCH_SIZE, epochs=EPOCHS,
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        ):
+
+        """
+
+        Positional arguments:
+
+            - width of (square) image
+            - number of channels of input image
+            - discriminator sizes
+
+                a python dict of the kind
+                    d_sizes = { 'conv_layers':[(n_c+1, kernel, stride, apply_batch_norm, weight initializer, act_f),
+                                                   (,,,,),
+                                                   ],
+                                'dense_layers':[(n_o, apply_bn, weight_init, act_f)]
+                                }
+            - generator sizes
+
+                a python dictionary of the kind
+
+                    g_sizes = { 
+                                'z':latent_space_dim,
+                                'projection': int,
+                                'bn_after_project':bool
+
+                                'conv_layers':[(n_c+1, kernel, stride, apply_batch_norm, weight initializer, act_f),
+                                                   (,,,,),
+                                                   ],
+                                'dense_layers':[(n_o, apply_bn, weight_init, act_f)]
+                                'activation':function
+                                }
+
+        Keyword arguments:
+
+            - lr = LEARNING_RATE (float32)
+            - beta1 = ema parameter for adam opt (float32)
+            - batch_size (int)
+            - save_sample = after how many batches iterations to save a sample (int)
+            - path = relative path for saving samples
+
+        """
+
+        self.n_H = n_H
+        self.n_W = n_W
+        self.n_C = n_C
         
-#         self.session = session
+        self.latent_dims = g_sizes['z']
         
-#         for layer in self.d_convlayers:
-#             layer.set_session(session)
-                
-#         for layer in self.d_dense_layers:
-#             layer.set_session(session)
+        #input data
         
-#         for layer in self.g_convlayers:
-#             layer.set_session(session)
-                
-#         for layer in self.g_dense_layers:
-#             layer.set_session(session)
-    
-#     def fit(self, X):
+        self.X = tf.placeholder(
+            tf.float32,
+            shape=(None, 
+                   n_H, n_W, n_C),
+            name='X',
+        )
+        
+        self.Z = tf.placeholder(
+            tf.float32,
+            shape=(None, 
+                   self.latent_dims),
+            name='Z'    
+        )
 
-#         SEED = 1
-#         d_costs = []
-#         g_costs = []
+        self.batch_sz = tf.placeholder(
+            tf.int32, 
+            shape=(), 
+            name='batch_sz'
+        )
 
-#         N = len(X)
-#         n_batches = N // self.batch_size
-    
-#         total_iters=0
-
-#         print('\n ****** \n')
-#         print('Training DCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-#         print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
-#         print('\n ****** \n')
-
-#         for epoch in range(self.epochs):
-
-#             SEED +=1
-
-#             print('Epoch:', epoch)
+        D = Discriminator(self.X, d_sizes, 'A')
+        
+        with tf.variable_scope('discriminator_A') as scope:
             
-#             batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+            logits = D.d_forward(self.X)
 
-#             for X_batch in batches:
-                
-#                 t0 = datetime.now()
-                
-#                 Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
-                
-#                 _, d_cost, d_acc = self.session.run(
-#                     (self.d_train_op, self.d_cost, self.d_accuracy),
-#                     feed_dict={self.X: X_batch, self.Z:Z, self.batch_sz: self.batch_size},
-#                 )
-                
-#                 d_costs.append(d_cost)
-                
-#                 #train the generator averaging two costs if the
-#                 #discriminator learns too fast
-                
-#                 _, g_cost1 =  self.session.run(
-#                     (self.g_train_op, self.g_cost),
-#                     feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
-#                 )
-                
-#                 _, g_cost2 =  self.session.run(
-#                     (self.g_train_op, self.g_cost),
-#                     feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
-#                 )
+        G = Generator(self.Z, self.n_H, self.n_W, g_sizes, 'A')
+
+        with tf.variable_scope('generator_A') as scope:
+
+            self.sample_images = G.g_forward(self.Z)
         
-#                 g_costs.append((g_cost1 + g_cost2)/2) # just use the avg            
+        # get sample logits
+        with tf.variable_scope('discriminator_A') as scope:
+            scope.reuse_variables()
+            sample_logits = D.d_forward(self.sample_images, reuse=True)
+                
+        # get sample images for test time
+        with tf.variable_scope('generator_A') as scope:
+            scope.reuse_variables()
+            self.sample_images_test = G.g_forward(
+                self.Z, reuse=True, is_training=False
+            )
             
-#                 total_iters += 1
-#                 if total_iters % self.save_sample ==0:
-#                     print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
-#                     print('Saving a sample...')
-                    
-#                     Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
-                    
-#                     samples = self.sample(Z)#shape is (64,D,D,color)
-                    
-#                     w = self.n_W
-#                     h = self.n_H
-#                     samples = samples.reshape(self.batch_size, w, h)
-                    
-                    
-#                     for i in range(64):
-#                         plt.subplot(8,8,i+1)
-#                         plt.imshow(samples[i].reshape(w,h), cmap='gray')
-#                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
-#                         plt.axis('off')
-                    
-#                     fig = plt.gcf()
-#                     fig.set_size_inches(5,7)
-#                     plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
+        #cost building
+        
+        #Discriminator cost
+        self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logits,
+            labels=tf.ones_like(logits)
+        )
+        
+        self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=sample_logits,
+            labels=tf.zeros_like(sample_logits)
+        )
+        
+        self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
+        
+        #Generator cost
+        self.g_cost = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=sample_logits,
+                labels=tf.ones_like(sample_logits)
+            )
+        )
+        
+        #Measure accuracy of the discriminator
 
+        real_predictions = tf.cast(logits>0,tf.float32)
+        fake_predictions = tf.cast(sample_logits<0,tf.float32)
+        
+        num_predictions=2.0*batch_size
+        num_correct = tf.reduce_sum(real_predictions)+tf.reduce_sum(fake_predictions)
+        
+        self.d_accuracy = num_correct/num_predictions
+        
+        #optimizers
+        self.d_params =[t for t in tf.trainable_variables() if t.name.startswith('d')]
+        self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
+        
+        self.d_train_op = tf.train.AdamOptimizer(
+            learning_rate=lr_d,
+            beta1=beta1,
+        ).minimize(
+            self.d_cost,
+            var_list=self.d_params
+        )
+        
+        self.g_train_op = tf.train.AdamOptimizer(
+            learning_rate=lr_g,
+            beta1=beta1,
+        ).minimize(
+            self.g_cost,
+            var_list=self.g_params
+        )
 
-                    
-#             plt.clf()
-#             plt.plot(d_costs, label='discriminator cost')
-#             plt.plot(g_costs, label='generator cost')
-#             plt.legend()
-#             plt.savefig(self.path+'/cost vs iteration.png')
+        self.batch_size=batch_size
+        self.epochs=epochs
+        self.save_sample=save_sample
+        self.path=path
+        self.lr_g = lr_g
+        self.lr_d = lr_d
+        self.D=D
+        self.G=G
+
+                
+    def set_session(self, session):
+        
+        self.session = session
+        
+        for layer in self.D.d_conv_layers:
+            layer.set_session(session)
+                
+        for layer in self.D.d_dense_layers:
+            layer.set_session(session)
+        
+        for layer in self.G.g_conv_layers:
+            layer.set_session(session)
+                
+        for layer in self.G.g_dense_layers:
+            layer.set_session(session)
     
-#     def sample(self, Z):
+    def fit(self, X):
+
+        SEED = 1
+        d_costs = []
+        g_costs = []
+
+        N = len(X)
+        n_batches = N // self.batch_size
+    
+        total_iters=0
+
+        print('\n ****** \n')
+        print('Training DCGAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+        print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('\n ****** \n')
+
+        for epoch in range(self.epochs):
+
+            SEED +=1
+
+            print('Epoch:', epoch)
+            
+            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+
+            for X_batch in batches:
+                
+                t0 = datetime.now()
+                
+                Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
+                
+                _, d_cost, d_acc = self.session.run(
+                    (self.d_train_op, self.d_cost, self.d_accuracy),
+                    feed_dict={self.X: X_batch, self.Z:Z, self.batch_sz: self.batch_size},
+                )
+                
+                d_costs.append(d_cost)
+                
+                #train the generator averaging two costs if the
+                #discriminator learns too fast
+                
+                _, g_cost1 =  self.session.run(
+                    (self.g_train_op, self.g_cost),
+                    feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
+                )
+                
+                _, g_cost2 =  self.session.run(
+                    (self.g_train_op, self.g_cost),
+                    feed_dict={self.Z:Z, self.batch_sz:self.batch_size},
+                )
         
-#         samples = self.session.run(
-#             self.sample_images_test, 
-#             feed_dict={self.Z:Z, self.batch_sz: self.batch_size})
+                g_costs.append((g_cost1 + g_cost2)/2) # just use the avg            
+            
+                total_iters += 1
+                if total_iters % self.save_sample ==0:
+                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
+                    print('Saving a sample...')
+                    
+                    Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
+                    
+                    samples = self.sample(Z)#shape is (64,D,D,color)
+                    
+                    w = self.n_W
+                    h = self.n_H
+                    samples = samples.reshape(self.batch_size, h, w)
+                    
+                    
+                    for i in range(64):
+                        plt.subplot(8,8,i+1)
+                        plt.imshow(samples[i].reshape(h,w), cmap='gray')
+                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                        plt.axis('off')
+                    
+                    fig = plt.gcf()
+                    fig.set_size_inches(5,7)
+                    plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
 
-#         return samples 
 
-#     def get_sample(self, Z):
+                    
+            plt.clf()
+            plt.plot(d_costs, label='discriminator cost')
+            plt.plot(g_costs, label='generator cost')
+            plt.legend()
+            plt.savefig(self.path+'/cost vs iteration.png')
+    
+    def sample(self, Z):
         
-#         one_sample = self.session.run(
-#             self.sample_images_test, 
-#             feed_dict={self.Z:Z, self.batch_sz: 1})
+        samples = self.session.run(
+            self.sample_images_test, 
+            feed_dict={self.Z:Z, self.batch_sz: self.batch_size})
 
-#         return one_sample 
+        return samples 
 
-
+    def get_sample(self, Z):
         
+        one_sample = self.session.run(
+            self.sample_images_test, 
+            feed_dict={self.Z:Z, self.batch_sz: 1})
+
+        return one_sample 
+
+
