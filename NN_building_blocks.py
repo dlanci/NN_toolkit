@@ -1,3 +1,5 @@
+#BUILDING BLOCKS
+
 
 import numpy as np
 import math
@@ -107,7 +109,7 @@ def unsupervised_random_mini_batches(X, mini_batch_size, seed):
     return mini_batches
 
 
-#BUILDING BLOCKS
+
 # DENSELY CONNECTED NETWORKS
 
 class DenseLayer(object):
