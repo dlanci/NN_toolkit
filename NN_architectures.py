@@ -1530,7 +1530,7 @@ class DVAE:
         #   logits=posterior_predictive_logits
         # )
         # expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
-    
+
         expected_log_likelihood = tf.reduce_sum(
               self.X_hat_distribution.log_prob(self.X),
               1
@@ -1931,7 +1931,7 @@ class DCVAE:
             #times as many units (M means and M stddevs)
             name = 'e_conv_layer_%s' %count
             last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1,
-             f=lambda x: x, w_init=tf.random_normal_initializer())
+             f=lambda x: x, w_init=e_sizes['last_layer_weight_init'])
             
             self.e_dense_layers.append(last_enc_layer)
             
@@ -2015,25 +2015,17 @@ class DCVAE:
             mi = d_sizes['projection']
             self.d_conv_layers=[]
             
-
-            activation_functions = []
-
-            for _, _, _, _, _, act_f, _ in d_sizes['conv_layers'][:-1]:
-                activation_functions.append(act_f)
-
-            activation_functions.append(d_sizes['output_activation'])
-            
             for i in range(len(d_sizes['conv_layers'])):
+
                 name = 'fs_convlayer_%s' %i
                 
-                mo, filter_sz, stride, apply_batch_norm, keep_prob, _, w_init = d_sizes['conv_layers'][i]
-                f = activation_functions[i]
+                mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = d_sizes['conv_layers'][i]
                 
                 layer = DeconvLayer(
                   name, mi, mo, [dims_H[i+1], dims_W[i+1]],
                   filter_sz, stride,
                   apply_batch_norm, keep_prob, 
-                  f, w_init
+                  act_f, w_init
                 )
 
                 self.d_conv_layers.append(layer)
