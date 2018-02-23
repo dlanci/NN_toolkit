@@ -1530,29 +1530,6 @@ class DVAE:
             beta1=beta1,
         ).minimize(-self.loss)          
 
-        #test time
-
-        # self.X_input = tf.placeholder(
-        #         tf.float32,
-        #         shape = (None, self.dim),
-        #         name='X_input'
-        #     )
-
-        # #encode at test time
-
-        # with tf.variable_scope('encoder') as scope:
-        #     scope.reuse_variables()
-        #     self.Z_input = self.encode(
-        #         self.X_input, reuse=True, is_training=False
-        #     )
-        # #decode from encoded at test time
-
-        # with tf.variable_scope('decoder') as scope:
-        #     scope.reuse_variables()
-        #     X_decoded = self.decode(
-        #         self.Z_input, reuse=True, is_training=False
-        #         )
-        #     self.X_decoded = tf.nn.sigmoid(X_decoded)
 
         #saving for later
         self.lr = lr
@@ -1715,7 +1692,7 @@ class DVAE:
                     print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
                     print('Saving a sample...')
                         
-                    probs = [self.prior_predictive_sample_with_probs()  for i in range(64)]  
+                    probs = [self.prior_predictive_sample()  for i in range(64)]  
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
@@ -1776,33 +1753,36 @@ class DCVAE:
         )
         
         #builds the encoder and outputs a Z distribution
-        self.Z = self.build_encoder(self.X, self.e_sizes)
-        
-        #builds decoder from Z distribution
+        self.Z=self.build_encoder(self.X, self.e_sizes)
+
+
         logits = self.build_decoder(self.Z, self.d_sizes)
-        
-        #builds X_hat distribution from decoder output
+
+
         self.X_hat_distribution = Bernoulli(logits=logits)
-        
-        #posterior predictive
+
+        # posterior predictive
+        # take samples from X_hat
         
         with tf.variable_scope('encoder') as scope:
             scope.reuse_variables
             self.Z_dist = self.encode(
                 self.X, reuse=True, is_training=False,
-            )#self.X or something on purpose?
-                                 
+            )#self.X or something on purpose?                                            
         with tf.variable_scope('decoder') as scope:
             scope.reuse_variables()
             sample_logits = self.decode(
                 self.Z_dist, reuse=True, is_training=False,
             )
-            
+        
+
         self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
         self.posterior_predictive = self.posterior_predictive_dist.sample()
         self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
-        
-        #prior predictive from prob
+
+        # prior predictive 
+        # take sample from a Z ~ N(0, 1)
+        # and put it through the decoder
 
         standard_normal = Normal(
           loc=np.zeros(self.latent_dims, dtype=np.float32),
@@ -1821,21 +1801,7 @@ class DCVAE:
         self.prior_predictive = prior_predictive_dist.sample()
         self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
 
-        # prior predictive from input
 
-        self.Z_input = tf.placeholder(tf.float32, shape=(None, self.latent_dims))
-        
-        with tf.variable_scope('decoder') as scope:
-            scope.reuse_variables()    
-            logits_from_input = self.decode(
-                self.Z_input, reuse=True, is_training=False,
-            )
-        
-        input_predictive_dist = Bernoulli(logits=logits_from_input)
-        self.prior_predictive_from_input= input_predictive_dist.sample()
-        self.prior_predictive_from_input_probs = tf.nn.sigmoid(logits_from_input)
-
-        
         #cost
         kl = tf.reduce_sum(
             tf.contrib.distributions.kl_divergence(
@@ -1843,18 +1809,26 @@ class DCVAE:
                 standard_normal),
             1
         )
-        
-        
+
+        # equivalent
+        # expected_log_likelihood = -tf.nn.sigmoid_cross_entropy_with_logits(
+        #   labels=self.X,
+        #   logits=posterior_predictive_logits
+        # )
+        # expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
+
         expected_log_likelihood = tf.reduce_sum(
               self.X_hat_distribution.log_prob(self.X),
               1
         )
         
         self.loss = tf.reduce_sum(expected_log_likelihood - kl)
+        
         self.train_op = tf.train.AdamOptimizer(
             learning_rate=lr,
             beta1=beta1,
-        ).minimize(-self.loss)
+        ).minimize(-self.loss)          
+
 
         #saving for later
         self.lr = lr
@@ -2131,19 +2105,13 @@ class DCVAE:
         )
         return samples
 
-    def prior_predictive_with_input(self, Z):
-        return self.session.run(
-          self.prior_predictive_from_input_probs,
-          feed_dict={self.Z_input: Z}
-        )
-
     def posterior_predictive_sample(self, X):
         # returns a sample from p(x_new | X)
         return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:BATCH_SIZE})
 
-    def prior_predictive_sample_with_probs(self):
+    def prior_predictive_sample(self):
         # returns a sample from p(x_new | z), z ~ N(0, 1)
-        return self.session.run( self.prior_predictive_probs)
+        return self.session.run(self.prior_predictive_probs)
 
 #can't seem to work on mnist
 class resDCVAE:
