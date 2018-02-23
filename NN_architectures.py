@@ -2077,7 +2077,7 @@ class DCVAE:
                     print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
                     print('Saving a sample...')
                         
-                    probs = [self.prior_predictive_sample_with_probs()  for i in range(64)]  
+                    probs = [self.prior_predictive_sample()  for i in range(64)]  
                     
                     for i in range(64):
                         plt.subplot(8,8,i+1)
