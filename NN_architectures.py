@@ -1448,10 +1448,17 @@ class DVAE(object):
                 name='batch_sz'
             )
 
-        self.Z=self.build_encoder(self.X, self.e_sizes)
+        self.E = denseEncoder(self.X, e_sizes, 'A')
 
+        with tf.variable_scope('encoder_A') as scope:
 
-        logits = self.build_decoder(self.Z, self.d_sizes)
+            self.Z = self.E.encode(self.X)
+
+        self.D = denseDecoder(self.Z, self.latent_dims, dim, d_sizes, 'A')
+
+        with tf.variable_scope('decoder_A') as scope:
+
+            logits = self.D.decode(self.Z)
 
 
         self.X_hat_distribution = Bernoulli(logits=logits)
@@ -1459,14 +1466,14 @@ class DVAE(object):
         # posterior predictive
         # take samples from X_hat
         
-        with tf.variable_scope('encoder') as scope:
+        with tf.variable_scope('encoder_A') as scope:
             scope.reuse_variables
-            self.Z_dist = self.encode(
+            self.Z_dist = self.E.encode(
                 self.X, reuse=True, is_training=False,
             )#self.X or something on purpose?                                            
-        with tf.variable_scope('decoder') as scope:
+        with tf.variable_scope('decoder_A') as scope:
             scope.reuse_variables()
-            sample_logits = self.decode(
+            sample_logits = self.D.decode(
                 self.Z_dist, reuse=True, is_training=False,
             )
         
@@ -1486,9 +1493,9 @@ class DVAE(object):
 
         Z_std = standard_normal.sample(1)
 
-        with tf.variable_scope('decoder') as scope:
+        with tf.variable_scope('decoder_A') as scope:
             scope.reuse_variables()
-            logits_from_prob = self.decode(
+            logits_from_prob = self.D.decode(
                 Z_std, reuse=True, is_training=False,
             )
         
@@ -1532,99 +1539,14 @@ class DVAE(object):
         self.path = path
         self.save_sample = save_sample
 
-    def build_encoder(self, X, e_sizes):
-
-        with tf.variable_scope('encoder') as scope:
-
-            #dimensions of input
-            mi = self.dim
-            self.e_layers = []
-
-            count=0
-            for mo, apply_batch_norm, keep_prob, act_f, w_init in e_sizes['dense_layers']:
-
-                name = 'layer_{0}'.format(count)
-                count +=1
-
-                layer = DenseLayer(name, mi, mo,
-                        apply_batch_norm, keep_prob,
-                        act_f, w_init
-                        )
-
-                self.e_layers.append(layer)
-                mi = mo
-
-            name = 'layer_{0}'.format(count)
-
-            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims,
-                False, 1, f=lambda x:x, w_init=e_sizes['last_layer_weight_init'])
-
-            self.e_layers.append(last_enc_layer)
-
-            return self.encode(X)
-
-    def encode(self, X, reuse=None, is_training=False):
-
-        output=X
-        for layer in self.e_layers:
-            output = layer.forward(output, reuse, is_training)
-
-        self.means = output[:,:self.latent_dims]
-        self.stddev = tf.nn.softplus(output[:,self.latent_dims:])+1e-6
-
-        with st.value_type(st.SampleValue()):
-            Z = st.StochasticTensor(Normal(loc=self.means, scale=self.stddev))
-        
-        return Z
-
-    def build_decoder(self, Z, d_sizes):
-
-        with tf.variable_scope('decoder') as scope:
-
-            mi = self.latent_dims
-
-            self.d_layers = []
-            count = 0
-            for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
-
-                name = 'layer_{0}'.format(count)
-                count += 1
-
-                layer = DenseLayer(name, mi, mo,
-                        apply_batch_norm, keep_prob,
-                        act_f, w_init
-                        )
-
-                self.d_layers.append(layer)
-                mi = mo
-
-            name = 'layer_{0}'.format(count)
-
-            last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
-                f=lambda x:x, w_init=d_sizes['last_layer_weight_init']
-                )
-
-            self.d_layers.append(last_dec_layer)
-
-            return self.decode(Z)
-
-    def decode(self, Z, reuse=None, is_training=False):
-
-        output=Z
-
-        for layer in self.d_layers:
-             output = layer.forward(output, reuse, is_training)
-        
-        return output
-
     def set_session(self, session):
 
         self.session = session
 
-        for layer in self.d_layers:
+        for layer in self.D.d_layers:
             layer.set_session(self.session)
 
-        for layer in self.e_layers:
+        for layer in self.E.e_layers:
             layer.set_session(self.session)
 
     def fit(self, X):
