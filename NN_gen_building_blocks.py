@@ -578,7 +578,10 @@ class resGenerator(object):
 #VARIATIONAL_AUTOENCODERS
 
 class denseEncoder:
+
     def __init__(self, X, e_sizes, name):
+
+        latent_dims = e_sizes['z']
 
         _, mi = X.get_shape().as_list()
 
@@ -602,9 +605,10 @@ class denseEncoder:
 
             name = 'layer_{0}'.format(count)
 
-            last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims,
+            last_enc_layer = DenseLayer(name, mi, 2*latent_dims,
                 False, 1, f=lambda x:x, w_init=e_sizes['last_layer_weight_init'])
 
+            self.latent_dims = latent_dims
             self.e_layers.append(last_enc_layer)
 
     def encode(self, X, reuse = None, is_training=False):
@@ -623,13 +627,11 @@ class denseEncoder:
 
 class denseDecoder:
 
-    def __init__(self, Z, d_sizes, name):
+    def __init__(self, Z, latent_dims, dim, d_sizes, name):
 
-        _, mi = Z.get_shape().as_list()
+        mi = latent_dims
 
         with tf.variable_scope('decoder'+name) as scope:
-
-            mi = self.latent_dims
 
             self.d_layers = []
             count = 0
@@ -648,7 +650,7 @@ class denseDecoder:
 
             name = 'layer_{0}'.format(count)
 
-            last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
+            last_dec_layer = DenseLayer(name, mi, dim, False, 1,
                 f=lambda x:x, w_init=d_sizes['last_layer_weight_init']
                 )
 
@@ -663,10 +665,9 @@ class denseDecoder:
         
         return output
 
+# class convEncoder:
 
-# class Encoder:
-
-# class Decoder:
+# class convDecoder:
 
 # class resEncoder:
 
