@@ -515,7 +515,7 @@ class resGenerator(object):
                 #saving for later
                 self.g_sizes=g_sizes
                 
-                return self.g_forward(Z)
+                # return self.g_forward(Z)
    
     def g_forward(self, Z, reuse=None, is_training=True):
 
