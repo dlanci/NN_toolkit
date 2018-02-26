@@ -407,7 +407,7 @@ class resGenerator(object):
                         if not 'shortcut' in key:
                              g_steps+=1
                 
-                assert g_steps == self.d_steps, '\nUnmatching discriminator/generator architecture'
+                #assert g_steps == self.d_steps, '\nUnmatching discriminator/generator architecture'
                 
 
                 g_block_n=0
