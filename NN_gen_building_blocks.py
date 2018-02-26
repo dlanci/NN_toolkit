@@ -385,7 +385,7 @@ class resGenerator(object):
                 self.g_dense_layers = []
                 count = 0
 
-                mi = self.latent_dims
+                mi = latent_dims
 
                 for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
                     name = 'g_dense_layer_%s' %count
