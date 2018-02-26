@@ -374,8 +374,6 @@ class resGenerator(object):
     def __init__(self, Z, dim_H, dim_W, g_sizes, name):
 
         latent_dims = g_sizes['z']
-        dims_H =[dim_H]
-        dims_W =[dim_W]
 
         mi = latent_dims
 
@@ -422,12 +420,8 @@ class resGenerator(object):
                 assert g_block_n+g_layer_n==g_steps, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers and convolutional blocks'
 
                 #dimensions of output generated image
-                dims_W = [self.n_W]
-                dims_H = [self.n_H]
-
-                dim_H = self.n_H
-                dim_W = self.n_W
-
+                dims_H =[dim_H]
+                dims_W =[dim_W]
 
                 layers_output_sizes={}
                 blocks_output_sizes={}
