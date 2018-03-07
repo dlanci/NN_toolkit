@@ -1,5 +1,5 @@
 #NETWORK ARCHITECTURES
-
+rnd_seed=1
 
 import numpy as np
 import os 
@@ -740,7 +740,7 @@ class resCNN(object):
         self, n_H, n_W, n_C, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED
         ):
 
         self.n_classes = sizes['n_classes']
@@ -749,6 +749,7 @@ class resCNN(object):
         self.n_C = n_C
 
         self.conv_sizes = sizes
+        self.seed = seed
 
         self.keep_prob = tf.placeholder(
             tf.float32
@@ -921,7 +922,7 @@ class resCNN(object):
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer())
+                                        tf.random_uniform_initializer(seed=rnd_seed))
 
             self.dense_layers.append(readout_layer)
 
@@ -991,7 +992,7 @@ class resCNN(object):
 
         """
 
-        SEED = 1
+        seed = self.seed
 
         N = X_train.shape[0]
         test_size = X_test.shape[0]
@@ -1006,10 +1007,10 @@ class resCNN(object):
         costs = []
         for epoch in range(self.epochs):
 
-            SEED = SEED + 1
+            seed = seed + 1
 
-            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
-            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, seed)
             
             for train_batch in train_batches:
 
@@ -1130,7 +1131,7 @@ class DAE(object):
         self, dim, e_sizes, d_sizes, an_id=0, 
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, img_height=None, img_width=None
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED, img_height=None, img_width=None
         ):
 
 
@@ -1139,6 +1140,8 @@ class DAE(object):
         self.latent_dims=e_sizes['z']
         self.e_sizes=e_sizes
         self.d_sizes=d_sizes
+
+        self.seed = seed
 
         self.img_height=img_height
         self.img_width=img_width
@@ -1234,7 +1237,7 @@ class DAE(object):
 
             name = 'layer_{0}'.format(count)
             last_enc_layer = DenseLayer(name, mi, self.latent_dims, False, 1,
-                self.e_last_act_f, w_init=tf.random_normal_initializer(stddev=0.02)
+                self.e_last_act_f, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
                 )
             self.e_layers.append(last_enc_layer)
 
@@ -1271,7 +1274,7 @@ class DAE(object):
             name = 'layer_{0}'.format(count)
 
             last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
-                f=lambda x:x, w_init=tf.random_normal_initializer(stddev=0.02)
+                f=lambda x:x, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
                 )
 
             self.d_layers.append(last_dec_layer)
@@ -1316,7 +1319,7 @@ class DAE(object):
         """
 
 
-        SEED = 1
+        seed = self.seed
 
         costs = []
         N = len(X)
@@ -1333,9 +1336,9 @@ class DAE(object):
 
             # print('Epoch: {0}'.format(epoch))
 
-            SEED = SEED + 1
+            seed += 1
 
-            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+            batches = unsupervised_random_mini_batches(X, self.batch_size, seed)
 
             for X_batch in batches:
 
@@ -1379,267 +1382,270 @@ class DAE(object):
 #tested on mnist
 class DVAE(object):
 
-    """
-    Builds densely connected deep variational autoencoder. Regularization implemented 
-    with dropout, no regularization parameter implemented yet. Minimization through
-    AdamOptimizer (adaptive learning rate).
+	"""
+	Builds densely connected deep variational autoencoder. Regularization implemented 
+	with dropout, no regularization parameter implemented yet. Minimization through
+	AdamOptimizer (adaptive learning rate).
 
-    The minimized loss function is the elbo function (explain further)
+	The minimized loss function is the elbo function (explain further)
 
-    Constructor inputs:
+	Constructor inputs:
 
-        -Positional arguments:
-            - dim: (int) input features 
-            - e_sizes: (dict)
-            - d_sizes: (dict)
-        
-        -Keyword arguments
+	    -Positional arguments:
+	        - dim: (int) input features 
+	        - e_sizes: (dict)
+	        - d_sizes: (dict)
+	    
+	    -Keyword arguments
 
-            - an_id: (int) number useful for stacked ae
-            - lr: (float32) learning rate arg for the AdamOptimizer
-            - beta1: (float32) beta1 arg for the AdamOptimizer
-            - batch_size: (int) size of each batch
-            - epochs: (int) number of times the training has to be repeated over all the batches
-            - save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
-            - path: (str) path for saving the session checkpoint
+	        - an_id: (int) number useful for stacked ae
+	        - lr: (float32) learning rate arg for the AdamOptimizer
+	        - beta1: (float32) beta1 arg for the AdamOptimizer
+	        - batch_size: (int) size of each batch
+	        - epochs: (int) number of times the training has to be repeated over all the batches
+	        - save_sample: (int) after how many iterations of the training algorithm performs the evaluations in fit function
+	        - path: (str) path for saving the session checkpoint
 
-    Class attributes:
-        
-        - X: (tf placeholder) input tensor of shape (batch_size, input features)
-        - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
-        - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
-        - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
-        - train_op: gradient descent algorithm with AdamOptimizer
-
-    
-    Class methods:
-        - posterior_predictive_sample:
-        - prior_predictive_sample_with_probs:
-
-    """
-
-    def __init__(
-        self, dim, e_sizes, d_sizes, an_id=0, 
-        lr=LEARNING_RATE, beta1=BETA1,
-        batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, img_height=None, img_width=None
-        ):
-        """
-        Positional args
+	Class attributes:
+	    
+	    - X: (tf placeholder) input tensor of shape (batch_size, input features)
+	    - Y: (tf placeholder) label tensor of shape (batch_size, n_classes) (one_hot encoding)
+	    - Y_hat: (tf tensor) shape=(batch_size, n_classes) predicted class (one_hot)
+	    - loss: (tf scalar) reduced mean of cost computed with softmax cross entropy with logits
+	    - train_op: gradient descent algorithm with AdamOptimizer
 
 
-        Keyword args
+	Class methods:
+	    - posterior_predictive_sample:
+	    - prior_predictive_sample_with_probs:
 
-        """
-        self.dim = dim
-        self.e_sizes=e_sizes
-        self.d_sizes=d_sizes
-        self.img_height=img_height
-        self.img_width=img_width
+	"""
 
-        self.latent_dims=e_sizes['z']
-        #self.d_last_act_f = d_sizes['last_act_f']
-
-        self.X = tf.placeholder(
-                tf.float32,
-                shape=(None, self.dim),
-                name='X'
-            )
-            
-        self.batch_sz = tf.placeholder(
-                tf.float32,
-                shape=(),
-                name='batch_sz'
-            )
-
-        self.E = denseEncoder(self.X, e_sizes, 'A')
-
-        with tf.variable_scope('encoder_A') as scope:
-
-            self.Z = self.E.encode(self.X)
-
-        self.D = denseDecoder(self.Z, self.latent_dims, dim, d_sizes, 'A')
-
-        with tf.variable_scope('decoder_A') as scope:
-
-            logits = self.D.decode(self.Z)
+	def __init__(
+		self, dim, e_sizes, d_sizes, an_id=0, 
+		lr=LEARNING_RATE, beta1=BETA1,
+		batch_size=BATCH_SIZE, epochs=EPOCHS,
+		save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED, img_height=None, img_width=None
+		):
+		"""
+		Positional args
 
 
-        self.X_hat_distribution = Bernoulli(logits=logits)
+		Keyword args
 
-        # posterior predictive
-        # take samples from X_hat
-        
-        with tf.variable_scope('encoder_A') as scope:
-            scope.reuse_variables
-            self.Z_dist = self.E.encode(
-                self.X, reuse=True, is_training=False,
-            )#self.X or something on purpose?                                            
-        with tf.variable_scope('decoder_A') as scope:
-            scope.reuse_variables()
-            sample_logits = self.D.decode(
-                self.Z_dist, reuse=True, is_training=False,
-            )
-        
+		"""
+		self.dim = dim
+		self.e_sizes=e_sizes
+		self.d_sizes=d_sizes
+		self.img_height=img_height
+		self.img_width=img_width
+		self.seed = seed
 
-        self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
-        self.posterior_predictive = self.posterior_predictive_dist.sample()
-        self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
+		self.latent_dims=e_sizes['z']
+		#self.d_last_act_f = d_sizes['last_act_f']
 
-        # prior predictive 
-        # take sample from a Z ~ N(0, 1)
-        # and put it through the decoder
+		self.X = tf.placeholder(
+				tf.float32,
+				shape=(None, self.dim),
+				name='X'
+			)
+		    
+		self.batch_sz = tf.placeholder(
+		        tf.float32,
+		        shape=(),
+		        name='batch_sz'
+		    )
 
-        standard_normal = Normal(
-          loc=np.zeros(self.latent_dims, dtype=np.float32),
-          scale=np.ones(self.latent_dims, dtype=np.float32)
-        )
+		self.E = denseEncoder(self.X, e_sizes, 'A')
 
-        Z_std = standard_normal.sample(1)
+		with tf.variable_scope('encoder_A') as scope:
 
-        with tf.variable_scope('decoder_A') as scope:
-            scope.reuse_variables()
-            logits_from_prob = self.D.decode(
-                Z_std, reuse=True, is_training=False,
-            )
-        
-        prior_predictive_dist = Bernoulli(logits=logits_from_prob)
-        self.prior_predictive = prior_predictive_dist.sample()
-        self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
+		    self.Z = self.E.encode(self.X)
+
+		self.D = denseDecoder(self.Z, self.latent_dims, dim, d_sizes, 'A')
+
+		with tf.variable_scope('decoder_A') as scope:
+
+		    logits = self.D.decode(self.Z)
 
 
-        #cost
-        kl = tf.reduce_sum(
-            tf.contrib.distributions.kl_divergence(
-                self.Z.distribution,
-                standard_normal),
-            1
-        )
+		self.X_hat_distribution = Bernoulli(logits=logits)
 
-        # equivalent
-        # expected_log_likelihood = -tf.nn.sigmoid_cross_entropy_with_logits(
-        #   labels=self.X,
-        #   logits=posterior_predictive_logits
-        # )
-        # expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
+		# posterior predictive
+		# take samples from X_hat
 
-        expected_log_likelihood = tf.reduce_sum(
-              self.X_hat_distribution.log_prob(self.X),
-              1
-        )
-        
-        self.loss = tf.reduce_sum(expected_log_likelihood - kl)
-        
-        self.train_op = tf.train.AdamOptimizer(
-            learning_rate=lr,
-            beta1=beta1,
-        ).minimize(-self.loss)          
+		with tf.variable_scope('encoder_A') as scope:
+		    scope.reuse_variables
+		    self.Z_dist = self.E.encode(
+		        self.X, reuse=True, is_training=False,
+		    )#self.X or something on purpose?                                            
+		with tf.variable_scope('decoder_A') as scope:
+		    scope.reuse_variables()
+		    sample_logits = self.D.decode(
+		        self.Z_dist, reuse=True, is_training=False,
+		    )
 
 
-        #saving for later
-        self.lr = lr
-        self.batch_size=batch_size
-        self.epochs = epochs
-        self.path = path
-        self.save_sample = save_sample
+		self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
+		self.posterior_predictive = self.posterior_predictive_dist.sample(seed=self.seed)
+		self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
 
-    def set_session(self, session):
+		# prior predictive 
+		# take sample from a Z ~ N(0, 1)
+		# and put it through the decoder
 
-        self.session = session
+		standard_normal = Normal(
+		  loc=np.zeros(self.latent_dims, dtype=np.float32),
+		  scale=np.ones(self.latent_dims, dtype=np.float32)
+		)
 
-        for layer in self.D.d_layers:
-            layer.set_session(self.session)
+		Z_std = standard_normal.sample(1, seed=self.seed)
 
-        for layer in self.E.e_layers:
-            layer.set_session(self.session)
+		with tf.variable_scope('decoder_A') as scope:
+		    scope.reuse_variables()
+		    logits_from_prob = self.D.decode(
+		        Z_std, reuse=True, is_training=False,
+		    )
 
-    def fit(self, X):
+		prior_predictive_dist = Bernoulli(logits=logits_from_prob)
+		self.prior_predictive = prior_predictive_dist.sample()
+		self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
 
-        """
-        Function is called if the flag is_training is set on TRAIN. If a model already is present
-        continues training the one already present, otherwise initialises all params from scratch.
-        
-        Performs the training over all the epochs, at when the number of epochs of training
-        is a multiple of save_sample, prints the cost at that epoch. When training has gone through all
-        the epochs, plots a plot of the cost versus epoch. 
 
-        Positional arguments:
+		#cost
+		kl = tf.reduce_sum(
+		    tf.contrib.distributions.kl_divergence(
+		        self.Z.distribution,
+		        standard_normal),
+		    1
+		)
 
-            - X_train: (ndarray) size=(train set size, input features) training sample set
-            
-        """
+		# equivalent
+		# expected_log_likelihood = -tf.nn.sigmoid_cross_entropy_with_logits(
+		#   labels=self.X,
+		#   logits=posterior_predictive_logits
+		# )
+		# expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
 
-        SEED = 1
+		expected_log_likelihood = tf.reduce_sum(
+		      self.X_hat_distribution.log_prob(self.X),
+		      1
+		)
 
-        costs = []
-        N = len(X)
-        n_batches = N // self.batch_size
+		self.loss = tf.reduce_sum(expected_log_likelihood - kl)
 
-        
+		self.train_op = tf.train.AdamOptimizer(
+		    learning_rate=lr,
+		    beta1=beta1,
+		).minimize(-self.loss)          
 
-        print('\n ****** \n')
-        print('Training deep VAE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' iterations a generated sample will be saved to '+ self.path)
-        print('\n ****** \n')
-        total_iters=0
 
-        for epoch in range(self.epochs):
-            
-            t0 = datetime.now()
-            print('Epoch: {0}'.format(epoch))
+		#saving for later
+		self.lr = lr
+		self.batch_size=batch_size
+		self.epochs = epochs
+		self.path = path
+		self.save_sample = save_sample
 
-            SEED = SEED + 1
+	def set_session(self, session):
 
-            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+		self.session = session
 
-            for X_batch in batches:
+		for layer in self.D.d_layers:
+			layer.set_session(self.session)
 
-                feed_dict = {
-                            self.X: X_batch, self.batch_sz: self.batch_size
-                            }
+		for layer in self.E.e_layers:
+			layer.set_session(self.session)
 
-                _, c = self.session.run(
-                            (self.train_op, self.loss),
-                            feed_dict=feed_dict
-                    )
+	def fit(self, X):
 
-                c /= self.batch_size
-                costs.append(c)
+		"""
+		Function is called if the flag is_training is set on TRAIN. If a model already is present
+		continues training the one already present, otherwise initialises all params from scratch.
 
-                total_iters += 1
+		Performs the training over all the epochs, at when the number of epochs of training
+		is a multiple of save_sample, prints the cost at that epoch. When training has gone through all
+		the epochs, plots a plot of the cost versus epoch. 
+
+		Positional arguments:
+
+		    - X_train: (ndarray) size=(train set size, input features) training sample set
+		    
+		"""
+
+		seed = self.seed
+
+		costs = []
+		N = len(X)
+		n_batches = N // self.batch_size
+
+
+		print('\n ****** \n')
+		print('Training deep VAE with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
+		print('The learning rate set is '+str(self.lr)+', and every ' +str(self.save_sample)+ ' iterations a generated sample will be saved to '+ self.path)
+		print('\n ****** \n')
+		total_iters=0
+
+		for epoch in range(self.epochs):
+
+			t0 = datetime.now()
+			print('Epoch: {0}'.format(epoch))
+
+			seed+=1
+
+			batches = unsupervised_random_mini_batches(X, self.batch_size, seed)
+
+			for X_batch in batches:
+
+				feed_dict = {
+					self.X: X_batch, self.batch_sz: self.batch_size
+				}
+
+				_, c = self.session.run(
+					(self.train_op, self.loss),
+					feed_dict=feed_dict
+				)
+
+				c /= self.batch_size
+				costs.append(c)
+
+				total_iters += 1
                 
-                if total_iters % self.save_sample ==0:
-                    print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
-                    print('Saving a sample...')
-                        
-                    probs = [self.prior_predictive_sample()  for i in range(64)]  
-                    
-                    for i in range(64):
-                        plt.subplot(8,8,i+1)
-                        plt.imshow(probs[i].reshape(self.img_height,self.img_width), cmap='gray')
-                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
-                        plt.axis('off')
-                        
-                    fig = plt.gcf()
-                    fig.set_size_inches(4,4)
-                    plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
+				if total_iters % self.save_sample ==0:
+					print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
+					print('Saving a sample...')
 
-        plt.clf()
-        plt.plot(costs)
-        plt.ylabel('cost')
-        plt.xlabel('iteration')
-        plt.title('learning rate=' + str(self.lr))
-        plt.show()
-        
-        print('Parameters trained')
+					probs = []
+					for i in range(64):
+						probs.append(self.prior_predictive_sample())
+						self.seed+=1
 
-    def posterior_predictive_sample(self, X):
-        # returns a sample from p(x_new | X)
-        return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
+					for i in range(64):
+						plt.subplot(8,8,i+1)
+						plt.imshow(probs[i].reshape(self.img_height,self.img_width), cmap='gray')
+						plt.subplots_adjust(wspace=0.2,hspace=0.2)
+						plt.axis('off')
 
-    def prior_predictive_sample(self):
-        # returns a sample from p(x_new | z), z ~ N(0, 1)
-        return self.session.run(self.prior_predictive_probs)
+					fig = plt.gcf()
+					fig.set_size_inches(4,4)
+					plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
+
+		plt.clf()
+		plt.plot(costs)
+		plt.ylabel('cost')
+		plt.xlabel('iteration')
+		plt.title('learning rate=' + str(self.lr))
+		plt.show()
+
+		print('Parameters trained')
+
+	def posterior_predictive_sample(self, X):
+		# returns a sample from p(x_new | X)
+		return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
+
+	def prior_predictive_sample(self):
+		# returns a sample from p(x_new | z), z ~ N(0, 1)
+		return self.session.run(self.prior_predictive_probs)
 
 #tested on mnist
 class DCVAE(object):
@@ -1697,7 +1703,7 @@ class DCVAE(object):
         
 
         self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
-        self.posterior_predictive = self.posterior_predictive_dist.sample()
+        self.posterior_predictive = self.posterior_predictive_dist.sample(seed=self.seed)
         self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
 
         # prior predictive 
@@ -2583,7 +2589,7 @@ class DCGAN(object):
         d_sizes,g_sizes,
         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED,
         ):
 
         """
@@ -2629,7 +2635,7 @@ class DCGAN(object):
         self.n_H = n_H
         self.n_W = n_W
         self.n_C = n_C
-        
+        self.seed=seed
         self.latent_dims = g_sizes['z']
         
         #input data
@@ -2759,7 +2765,7 @@ class DCGAN(object):
     
     def fit(self, X):
 
-        SEED = 1
+        seed = self.seed
         d_costs = []
         g_costs = []
 
@@ -2775,16 +2781,17 @@ class DCGAN(object):
 
         for epoch in range(self.epochs):
 
-            SEED +=1
+            seed +=1
 
             print('Epoch:', epoch)
             
-            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+            batches = unsupervised_random_mini_batches(X, self.batch_size, seed)
 
             for X_batch in batches:
                 
                 t0 = datetime.now()
                 
+                np.random.seed(seed)
                 Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
                 
                 _, d_cost, d_acc = self.session.run(
@@ -2814,13 +2821,14 @@ class DCGAN(object):
                     print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
-                    Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
+                    np.random.seed(seed)
+                    Z = np.random.uniform(-1,1, size=(64,self.latent_dims))
                     
                     samples = self.sample(Z)#shape is (64,D,D,color)
                     
                     w = self.n_W
                     h = self.n_H
-                    samples = samples.reshape(self.batch_size, h, w)
+                    samples = samples.reshape(64, h, w)
                     
                     
                     for i in range(64):
@@ -2866,7 +2874,7 @@ class resDCGAN(object):
         d_sizes,g_sizes,
         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED
         ):
 
         """
@@ -2913,6 +2921,7 @@ class resDCGAN(object):
 
         """
 
+        self.seed = seed
         self.n_W = n_W
         self.n_H = n_H
         self.n_C = n_C
@@ -3044,7 +3053,7 @@ class resDCGAN(object):
     
     def fit(self, X):
 
-        SEED = 1
+        seed = self.seed
         d_costs = []
         g_costs = []
 
@@ -3060,16 +3069,16 @@ class resDCGAN(object):
 
         for epoch in range(self.epochs):
 
-            SEED +=1
+            seed +=1
 
             print('Epoch:', epoch)
             
-            batches = unsupervised_random_mini_batches(X, self.batch_size, SEED)
+            batches = unsupervised_random_mini_batches(X, self.batch_size, seed)
 
             for X_batch in batches:
                 
                 t0 = datetime.now()
-                
+                np.random.seed(seed)
                 Z = np.random.uniform(-1,1, size= (self.batch_size, self.latent_dims))
                 
                 _, d_cost, d_acc = self.session.run(
@@ -3099,14 +3108,15 @@ class resDCGAN(object):
                 if total_iters % self.save_sample ==0:
                     print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
-                    
-                    Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
+
+                    np.random.seed(seed)
+                    Z = np.random.uniform(-1,1, size=(64,self.latent_dims))
                     
                     samples = self.sample(Z)#shape is (64,D,D,color)
                     
                     w = self.n_W
                     h = self.n_H
-                    samples = samples.reshape(self.batch_size, h, w)
+                    samples = samples.reshape(64, h, w)
                     
                     
                     for i in range(64):
@@ -3151,7 +3161,7 @@ class cycleGAN(object):
         d_sizes_A, d_sizes_B, g_sizes_A, g_sizes_B,
         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED
         ):
 
         """
@@ -3197,7 +3207,7 @@ class cycleGAN(object):
             - path = relative path for saving samples
 
         """
-
+        self.seed=seed
         self.n_W = n_W
         self.n_H = n_H
         self.n_C = n_C
@@ -3441,7 +3451,7 @@ class cycleGAN(object):
     
     def fit(self, X):
 
-        SEED = 1
+        seed = self.seed
         d_costs_A = []
         g_costs_A = []
 
@@ -3460,12 +3470,12 @@ class cycleGAN(object):
 
         for epoch in range(self.epochs):
 
-            SEED +=1
+            seed +=1
 
             print('Epoch:', epoch)
             
-            batches_A = unsupervised_random_mini_batches(X_A, self.batch_size, SEED)
-            batches_B = unsupervised_random_mini_batches(X_B, self.batch_size, SEED)
+            batches_A = unsupervised_random_mini_batches(X_A, self.batch_size, seed)
+            batches_B = unsupervised_random_mini_batches(X_B, self.batch_size, seed)
 
             for X_batch_A, X_batch_B in zip(batches_A,batches_B):
                 

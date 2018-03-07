@@ -1,4 +1,5 @@
 #GENERATIVE MODELS BUILDING BLOCKS
+rnd_seed=1
 
 import numpy as np
 import os 

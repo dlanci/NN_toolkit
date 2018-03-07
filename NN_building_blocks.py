@@ -1,5 +1,5 @@
 #BUILDING BLOCKS
-
+rnd_seed=1
 
 import numpy as np
 import math
@@ -148,7 +148,7 @@ class DenseLayer(object):
     """
     
     def __init__(self, name, mi, mo, apply_batch_norm, keep_prob, 
-                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02)
+                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
                 ):
         
                 self.W = tf.get_variable(
@@ -193,7 +193,7 @@ class DenseLayer(object):
                 scope = self.name,
             )
         
-        output = tf.nn.dropout(Z, self.keep_prob)
+        output = tf.nn.dropout(Z, self.keep_prob, seed=rnd_seed)
         return self.f(output)
 
     def forwardT(self, X, reuse, is_training):
@@ -215,7 +215,7 @@ class DenseLayer(object):
                 scope = self.name,
             )
         
-        output = tf.nn.dropout(Z, self.keep_prob)
+        output = tf.nn.dropout(Z, self.keep_prob, seed=rnd_seed)
         return self.f(output)
 
     def set_session(self, session):
@@ -362,7 +362,7 @@ class ConvLayer(object):
     def __init__(
             self, name, mi, mo, filter_sz, stride, 
                  apply_batch_norm, keep_prob, f = tf.nn.relu,
-                 w_init = tf.truncated_normal_initializer(stddev=0.02)
+                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=rnd_seed)
             ):
                 
             
@@ -411,7 +411,7 @@ class ConvLayer(object):
                 scope = self.name,
             )
         output = self.f(conv_out)  
-        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
         return output 
     
     def set_session(self, session):
@@ -469,7 +469,7 @@ class DeconvLayer(object):
                 mi, mo, output_shape, 
                 filter_sz, stride, 
                 apply_batch_norm, keep_prob,
-                f=tf.nn.relu, w_init = tf.random_normal_initializer(stddev=0.02)
+                f=tf.nn.relu, w_init = tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
                 ):
 
                 #using resize + conv2d and not conv2dt
@@ -567,7 +567,7 @@ class DeconvLayer(object):
             )
 
         output = self.f(conv_out) 
-        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
 
         return output
 
