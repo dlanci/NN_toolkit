@@ -77,9 +77,9 @@ class DNN(object):
         dim, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH):
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED):
 
-
+        self.seed=seed
         self.n_classes = sizes['n_classes']
         self.dim = dim
 
@@ -143,6 +143,7 @@ class DNN(object):
         self.epochs = epochs
         self.path = path
         self.save_sample = save_sample
+        
 
     def build_NN(self, X, sizes):
 
@@ -167,7 +168,7 @@ class DNN(object):
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer())
+                                        tf.random_uniform_initializer(seed=self.seed))
 
             self.dense_layers.append(readout_layer)
 
@@ -214,8 +215,8 @@ class DNN(object):
 
 
         """
-
-        SEED = 1
+        seed = self.seed
+        
 
         N = X_train.shape[0]
         test_size = X_test.shape[0]
@@ -230,10 +231,10 @@ class DNN(object):
         costs = []
         for epoch in range(self.epochs):
 
-            SEED = SEED + 1
+            seed += 1
 
-            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
-            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, seed)
             
             for train_batch in train_batches:
 
@@ -363,8 +364,10 @@ class CNN(object):
         self, n_H, n_W, n_C, sizes,
         lr=LEARNING_RATE, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
-        save_sample=SAVE_SAMPLE_PERIOD, path=PATH
+        save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed = SEED
         ):
+
+        self.seed = seed
 
         self.n_classes = sizes['n_classes']
         self.n_H = n_H
@@ -437,6 +440,7 @@ class CNN(object):
         self.epochs = epochs
         self.path = path
         self.save_sample = save_sample
+        
 
     def build_CNN(self, X, conv_sizes):
 
@@ -525,7 +529,7 @@ class CNN(object):
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer())
+                                        tf.random_uniform_initializer(seed=self.seed))
 
             self.dense_layers.append(readout_layer)
 
@@ -587,7 +591,7 @@ class CNN(object):
             - Y_test: (ndarray) size=(test set size, input features) test labels set
 
         """
-        SEED = 1
+        seed = self.seed
 
         N = X_train.shape[0]
         test_size = X_test.shape[0]
@@ -602,10 +606,10 @@ class CNN(object):
         costs = []
         for epoch in range(self.epochs):
 
-            SEED = SEED + 1
+            seed += 1
 
-            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, SEED)
-            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, SEED)
+            train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
+            test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, seed)
             
             for train_batch in train_batches:
 
@@ -3143,7 +3147,7 @@ class cycleGAN(object):
     
     def __init__(
         self, 
-        n_H_A, n_W_A, n_H_B, n_W_B, n_C,
+        n_H, n_W, n_C,
         d_sizes_A, d_sizes_B, g_sizes_A, g_sizes_B,
         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
@@ -3194,12 +3198,8 @@ class cycleGAN(object):
 
         """
 
-        self.n_W_A = n_W_B
-        self.n_W_B = n_W_B
-
-        self.n_H_A = n_H_A
-        self.n_H_B = n_H_B
-
+        self.n_W = n_W
+        self.n_H = n_H
         self.n_C = n_C
         
         #self.latent_dims = g_sizes['z']
@@ -3209,14 +3209,14 @@ class cycleGAN(object):
         self.input_A = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H_A, n_W_A, n_C),
+                   n_H, n_W, n_C),
             name='X_A',
         )
 
         self.input_B = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H_B, n_W_B, n_C),
+                   n_H, n_W, n_C),
             name='X_B',
         )
         
@@ -3236,8 +3236,8 @@ class cycleGAN(object):
         D_A = resDiscriminator(self.input_A, d_sizes_A, 'A')
         D_B = resDiscriminator(self.input_B, d_sizes_B, 'B')
 
-        G_A_to_B = cycleGenerator(self.input_A, self.n_H_B, self.n_W_B, g_sizes_A, 'A_to_B')
-        G_B_to_A = cycleGenerator(self.input_B, self.n_H_A, self.n_W_A, g_sizes_B, 'B_to_A')
+        G_A_to_B = cycleGenerator(self.input_A, self.n_H, self.n_W, g_sizes_A, 'A_to_B')
+        G_B_to_A = cycleGenerator(self.input_B, self.n_H, self.n_W, g_sizes_B, 'B_to_A')
         
 
         #first cycle (A to B)
