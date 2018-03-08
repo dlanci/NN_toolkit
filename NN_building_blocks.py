@@ -43,17 +43,18 @@ def supervised_random_mini_batches(X, Y, mini_batch_size, seed):
     mini_batches -- list of synchronous (mini_batch_X, mini_batch_Y)
     """
 
-    np.random.seed(seed)
+    
     m = X.shape[0]        #number of examples in set
     n_classes = Y.shape[1]
     mini_batches=[]
-
+    
+    np.random.seed(seed)
     permutation = list(np.random.permutation(m))
     #print('Zeroth element of batch permutation:', permutation[0])
     shuffled_X = X[permutation,:]
     shuffled_Y = Y[permutation,:]
     #partition of (shuffled_X, shuffled_Y) except the last mini_batch
-    
+
     num_complete_mini_batches = math.floor(m/mini_batch_size)
     for k in range(num_complete_mini_batches):
         mini_batch_X = shuffled_X[k*mini_batch_size:(k+1)*mini_batch_size,:]
@@ -85,10 +86,11 @@ def unsupervised_random_mini_batches(X, mini_batch_size, seed):
     Returns:
     mini_batches -- list of mini_batch_X
     """
-    np.random.seed(seed)
+    
     m = X.shape[0]        #number of examples in set
     mini_batches=[]
-
+    
+    np.random.seed(seed)
     permutation = list(np.random.permutation(m))
     #print('Zeroth element of batch permutation:', permutation[0])
     shuffled_X = X[permutation,:]
@@ -149,7 +151,7 @@ class DenseLayer(object):
     """
     
     def __init__(self, name, mi, mo, apply_batch_norm, keep_prob, 
-                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=1)
+                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
                 ):
         
             
@@ -195,7 +197,7 @@ class DenseLayer(object):
                 scope = self.name,
             )
         
-        output = tf.nn.dropout(Z, self.keep_prob, seed=1)
+        output = tf.nn.dropout(Z, self.keep_prob, seed=rnd_seed)
         return self.f(output)
 
     def forwardT(self, X, reuse, is_training):
@@ -265,7 +267,7 @@ class AvgPool2D(object):
             strides=[1,self.stride, self.stride, 1],
             padding = 'SAME'
             )
-        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
 
         return output
 
@@ -313,7 +315,7 @@ class MaxPool2D(object):
             padding = 'SAME'
             )
 
-        output = tf.nn.dropout(output, self.keep_prob)
+        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
         return output
 
     def set_session(self, session):
@@ -364,7 +366,7 @@ class ConvLayer(object):
     def __init__(
             self, name, mi, mo, filter_sz, stride, 
                  apply_batch_norm, keep_prob, f = tf.nn.relu,
-                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=1)
+                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=rnd_seed)
             ):
                 
             self.W = tf.get_variable(

@@ -452,7 +452,6 @@ class CNN(object):
 
             count = 0
             
-
             n = len(conv_sizes)-1 # count the number of layers leaving out n_classes key
             
             for key in conv_sizes:
@@ -523,7 +522,7 @@ class CNN(object):
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer(seed=1))
+                                        tf.random_uniform_initializer(seed=self.seed))
 
             self.dense_layers.append(readout_layer)
 
@@ -555,6 +554,7 @@ class CNN(object):
             #print('After dense layer {0}, shape {1}'.format(i, output.get_shape()))
 
         print('Logits shape', output.get_shape())
+
         return output
 
     def set_session(self, session):
@@ -627,18 +627,18 @@ class CNN(object):
 
                     )
 
-
+                
                 c /= self.batch_size
                 costs.append(c)
 
             #model evaluation
             if epoch % self.save_sample ==0:
-
+                                
+                
                 for test_batch in test_batches:
 
                     (X_test_batch, Y_test_batch) = test_batch
-
-
+                    print(X_test_batch.sum(),Y_test_batch.sum())
                     feed_dict={        
                                 self.X_input: X_test_batch,
                                 self.Y: Y_test_batch,
