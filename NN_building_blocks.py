@@ -49,7 +49,7 @@ def supervised_random_mini_batches(X, Y, mini_batch_size, seed):
     mini_batches=[]
 
     permutation = list(np.random.permutation(m))
-    
+    #print('Zeroth element of batch permutation:', permutation[0])
     shuffled_X = X[permutation,:]
     shuffled_Y = Y[permutation,:]
     #partition of (shuffled_X, shuffled_Y) except the last mini_batch
@@ -90,8 +90,9 @@ def unsupervised_random_mini_batches(X, mini_batch_size, seed):
     mini_batches=[]
 
     permutation = list(np.random.permutation(m))
-    
+    #print('Zeroth element of batch permutation:', permutation[0])
     shuffled_X = X[permutation,:]
+    
     #partition of shuffled_X except the last mini_batch
     
     num_complete_mini_batches = math.floor(m/mini_batch_size)
@@ -148,9 +149,10 @@ class DenseLayer(object):
     """
     
     def __init__(self, name, mi, mo, apply_batch_norm, keep_prob, 
-                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
+                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=1)
                 ):
         
+            
                 self.W = tf.get_variable(
                     "W_%s" %name,
                     shape=(mi,mo),
@@ -193,7 +195,7 @@ class DenseLayer(object):
                 scope = self.name,
             )
         
-        output = tf.nn.dropout(Z, self.keep_prob, seed=rnd_seed)
+        output = tf.nn.dropout(Z, self.keep_prob, seed=1)
         return self.f(output)
 
     def forwardT(self, X, reuse, is_training):
@@ -215,7 +217,7 @@ class DenseLayer(object):
                 scope = self.name,
             )
         
-        output = tf.nn.dropout(Z, self.keep_prob, seed=rnd_seed)
+        output = tf.nn.dropout(Z, self.keep_prob, seed=1)
         return self.f(output)
 
     def set_session(self, session):
@@ -362,10 +364,9 @@ class ConvLayer(object):
     def __init__(
             self, name, mi, mo, filter_sz, stride, 
                  apply_batch_norm, keep_prob, f = tf.nn.relu,
-                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=rnd_seed)
+                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=1)
             ):
                 
-            
             self.W = tf.get_variable(
                 "W_%s" %name,
                 shape=(filter_sz,filter_sz, mi, mo),
@@ -411,7 +412,7 @@ class ConvLayer(object):
                 scope = self.name,
             )
         output = self.f(conv_out)  
-        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
+        output = tf.nn.dropout(output, self.keep_prob, seed=1)
         return output 
     
     def set_session(self, session):
@@ -479,7 +480,6 @@ class DeconvLayer(object):
                 
                 #performs 2 convolutions, the first augments the number of channels
                 #the second performs a convolution with != 1 kernel and stride
-        
                 self.W = tf.get_variable(
                     "W_%s" %name,
                     shape=(filter_sz, filter_sz, mo, mo),
@@ -649,7 +649,6 @@ class ConvBlock(object):
                 
                     name = 'convblock_{0}_layer_{1}'.format(block_id, count)
                     count += 1
-                
                     layer = ConvLayer(name,
                                  mi, mo, filter_sz, stride, 
                                  apply_batch_norm, keep_prob,
@@ -674,7 +673,6 @@ class ConvBlock(object):
                 #set filter_sz = stride = 1 for an ID block
                 mo, filter_sz, stride, apply_batch_norm, keep_prob, w_init = sizes['convblock_shortcut_layer_'+str(self.block_id)][0]
                 name = 'convshortcut_layer_{0}'.format(block_id)
-
                 self.shortcut_layer = ConvLayer(name,
                                            init_mi, mo, filter_sz,stride,
                                            apply_batch_norm, keep_prob,
@@ -808,7 +806,6 @@ class DeconvBlock(object):
                     
                     mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = sizes['deconvblock_layer_'+str(block_id)][i]
                     name = 'deconvblock_{0}_layer_{1}'.format(block_id, i)
-
                     layer = DeconvLayer(name,mi, mo, output_sizes[block_id][i],
                                         filter_sz, stride, 
                                         apply_batch_norm, keep_prob,
@@ -832,7 +829,6 @@ class DeconvBlock(object):
                 #secondary path
                 mo, filter_sz, stride, apply_batch_norm, keep_prob, w_init = sizes['deconvblock_shortcut_layer_'+str(block_id)][0]
                 name = 'deconvshortcut_layer_{0}'.format(block_id)
-                
                 self.shortcut_layer = DeconvLayer(name, init_mi, mo, output_sizes[block_id][len(output_sizes[block_id])-1],
                                            filter_sz,stride,
                                            apply_batch_norm, keep_prob,

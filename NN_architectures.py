@@ -1,6 +1,7 @@
 #NETWORK ARCHITECTURES
 rnd_seed=1
 
+
 import numpy as np
 import os 
 import math
@@ -28,6 +29,7 @@ SEED = None
 
 
 #CLASSIFICATION MODELS
+
 
 #untested yet
 class DNN(object):
@@ -521,7 +523,7 @@ class CNN(object):
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer(seed=self.seed))
+                                        tf.random_uniform_initializer(seed=1))
 
             self.dense_layers.append(readout_layer)
 
