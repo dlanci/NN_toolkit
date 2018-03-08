@@ -375,10 +375,6 @@ class CNN(object):
         self.n_C = n_C
 
         self.conv_sizes = sizes
-
-        # self.keep_prob = tf.placeholder(
-        #     tf.float32
-        #     )
         
         self.X = tf.placeholder(
             tf.float32,
@@ -429,7 +425,7 @@ class CNN(object):
         with tf.variable_scope('convolutional') as scope:
             scope.reuse_variables()
             self.Y_hat_from_test = self.convolve(
-                self.X_input, reuse=True, is_training=False, keep_prob=1
+                self.X_input, reuse=True, is_training=False
             )
 
         self.accuracy = evaluation(self.Y_hat_from_test, self.Y)
@@ -454,10 +450,6 @@ class CNN(object):
 
             count = 0
             
-            # n=0
-            # for key in conv_sizes:
-            #     if 'conv' in key:
-            #         n+=1
 
             n = len(conv_sizes)-1 # count the number of layers leaving out n_classes key
             
@@ -535,7 +527,7 @@ class CNN(object):
 
             return self.convolve(X)
 
-    def convolve(self, X, reuse=None, is_training=True, keep_prob=0.5):
+    def convolve(self, X, reuse=None, is_training=True):
         
         print('Convolution')
         print('Input for convolution', X.get_shape())
