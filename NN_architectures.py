@@ -638,7 +638,7 @@ class CNN(object):
                 for test_batch in test_batches:
 
                     (X_test_batch, Y_test_batch) = test_batch
-                    print(X_test_batch.sum(),Y_test_batch.sum())
+                    #print(X_test_batch.sum(),Y_test_batch.sum())
                     feed_dict={        
                                 self.X_input: X_test_batch,
                                 self.Y: Y_test_batch,
