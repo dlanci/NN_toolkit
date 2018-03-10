@@ -2812,7 +2812,7 @@ class DCGAN(object):
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
-                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
+                    print("At iter: %d  -  dt: %s - d_acc: %.4f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
                     np.random.seed(seed)
