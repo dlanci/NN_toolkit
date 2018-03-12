@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 
-from architectures.utils import NN_building_blocks, NN_gen_building_blocks
+from architectures.utils.NN_building_blocks import *
+from architectures.utils.NN_gen_building_blocks import *
 
 
 def lrelu(x, alpha=0.1):
