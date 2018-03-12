@@ -1,6 +1,4 @@
 #NETWORK ARCHITECTURES
-rnd_seed=1
-
 
 import numpy as np
 import os 
@@ -26,7 +24,7 @@ EPOCHS = None
 SAVE_SAMPLE_PERIOD = None
 PATH = None
 SEED = None
-
+rnd_seed=1
 
 #CLASSIFICATION MODELS
 
@@ -233,6 +231,11 @@ class DNN(object):
         costs = []
         for epoch in range(self.epochs):
 
+            train_acc = 0
+            test_acc =0
+            train_accuracies=[]
+            test_accuracies=[]
+
             seed += 1
 
             train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
@@ -263,6 +266,9 @@ class DNN(object):
 
                 c /= self.batch_size
                 costs.append(c)
+                train_accuracies.append(train_acc)
+
+            train_acc = np.array(train_accuracies).mean()
 
             #model evaluation
             if epoch % self.save_sample ==0:
@@ -283,7 +289,11 @@ class DNN(object):
                             feed_dict=feed_dict
                                    
                         )
-                    
+
+                    test_accuracies.append(test_acc)
+
+                test_acc = np.array(test_accuracies).mean()
+
                 print('Evaluating performance on train/test sets')
                 print('At iteration {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
                 print('test accuracy {0:.4g}'.format(test_acc))
@@ -603,7 +613,11 @@ class CNN(object):
 
             train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
             test_batches = supervised_random_mini_batches(X_test, Y_test, self.batch_size, seed)
-            
+            train_acc = 0
+            test_acc =0
+            train_accuracies=[]
+            test_accuracies=[]
+
             for train_batch in train_batches:
 
                 (X_train, Y_train) = train_batch
@@ -628,8 +642,11 @@ class CNN(object):
 
                 
                 c /= self.batch_size
+
+                train_accuracies.append(train_acc)
                 costs.append(c)
 
+            train_acc = np.array(train_accuracies).mean()
             #model evaluation
             if epoch % self.save_sample ==0:
                                 
@@ -649,7 +666,10 @@ class CNN(object):
                             feed_dict=feed_dict
                                    
                         )
-                    
+
+                    test_accuracies.append(test_acc)
+
+                test_acc = np.array(test_accuracies).mean()
                 print('Evaluating performance on train/test sets')
                 print('At epoch {0}, train cost: {1:.4g}, train accuracy {2:.4g}'.format(epoch, c, train_acc))
                 print('test accuracy {0:.4g}'.format(test_acc))

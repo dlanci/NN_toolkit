@@ -112,7 +112,6 @@ def unsupervised_random_mini_batches(X, mini_batch_size, seed):
     return mini_batches
 
 
-
 # DENSELY CONNECTED NETWORKS
 
 class DenseLayer(object):
