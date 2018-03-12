@@ -13,7 +13,7 @@ st = tf.contrib.bayesflow.stochastic_tensor
 Normal = tf.contrib.distributions.Normal
 Bernoulli = tf.contrib.distributions.Bernoulli
 
-from NN_building_blocks import *
+from architectures.utils import NN_building_blocks
 
 #GANS
 
