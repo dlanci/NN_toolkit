@@ -73,11 +73,16 @@ class Discriminator(object):
                 #final logistic layer
 
             name = 'd_dense_layer_%s' %count
+            w_init_last = d_sizes['readout_layer_w_init']
             #print(name)
             self.d_final_layer = DenseLayer(name, mi, 1, 
                                                 False, 1, 
-                                                lambda x: x)
+                                                lambda x: x, w_init_last)
+            
+
             self.d_name=d_name
+
+
     def d_forward(self, X, reuse = None, is_training=True):
             print('Discriminator_'+self.d_name)
             print('Convolution')
@@ -198,7 +203,11 @@ class resDiscriminator(object):
             
             #final logistic layer
             name = 'd_dense_layer_%s' %count
-            self.d_final_layer = DenseLayer(name, mi, 1, False, 1, lambda x: x)
+            w_init_last = d_sizes['readout_layer_w_init']
+            #print(name)
+            self.d_final_layer = DenseLayer(name, mi, 1, 
+                                                False, 1, 
+                                                lambda x: x, w_init_last)
             
 
             self.d_steps=d_steps
@@ -289,17 +298,19 @@ class Generator(object):
             self.g_dims_H = dims_H
             self.g_dims_W = dims_W
 
+            projection, bn_after_project, keep_prob, act_f, w_init = g_sizes['projection'][0]
             
-            mo = g_sizes['projection']*dims_H[0]*dims_W[0]
+            mo = projection*dims_H[0]*dims_W[0]
         
             name = 'g_dense_layer_%s' %count
             count+=1
             #print(name)
-            self.g_final_layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
+
+            self.g_final_layer = DenseLayer(name, mi, mo, not bn_after_project, keep_prob, act_f, w_init)
             # self.g_dense_layers.append(layer)
             
             
-            mi = g_sizes['projection']
+            mi = projection
             self.g_conv_layers=[]
             
             
@@ -320,6 +331,8 @@ class Generator(object):
                 
             self.g_sizes=g_sizes
             self.g_name = g_name
+            self.projection = projection
+            self.bn_after_project = bn_after_project
    
     def g_forward(self, Z, reuse=None, is_training=True):
         print('Generator_'+self.g_name)
@@ -341,13 +354,13 @@ class Generator(object):
         output = tf.reshape(
             output,
             
-            [-1, self.g_dims_H[0], self.g_dims_W[0], self.g_sizes['projection']]
+            [-1, self.g_dims_H[0], self.g_dims_W[0], self.projection]
         
         )
 
         # print('Reshaped output after projection', output.get_shape())
 
-        if self.g_sizes['bn_after_project']:
+        if self.bn_after_project:
             output = tf.contrib.layers.batch_norm(
             output,
             decay=0.9, 
@@ -466,14 +479,22 @@ class resGenerator(object):
                 self.g_dims_W = dims_W
 
                 #final dense layer
-                mo = g_sizes['projection']*dims_H[0]*dims_W[0]
+                projection, bn_after_project, keep_prob, act_f, w_init = g_sizes['projection'][0]
+                
+                mo = projection*dims_H[0]*dims_W[0]
+            
                 name = 'g_dense_layer_%s' %count
+                
+                #print(name)
 
-                layer = DenseLayer(name, mi, mo, not g_sizes['bn_after_project'], 1)
+                layer = DenseLayer(name, mi, mo, not bn_after_project, keep_prob, act_f, w_init)
+                # self.g_dense_layers.append(layer)
+
+                
                 self.g_dense_layers.append(layer)
 
                 #deconvolution input channel number
-                mi = g_sizes['projection']
+                mi = projection
 
                 self.g_blocks=[]
 
@@ -518,6 +539,8 @@ class resGenerator(object):
                 #saving for later
                 self.g_sizes=g_sizes
                 self.g_name = g_name
+                self.projection = projection
+                self.bn_after_project = bn_after_project
                 # return self.g_forward(Z)
    
     def g_forward(self, Z, reuse=None, is_training=True):
@@ -538,13 +561,13 @@ class resGenerator(object):
             output = tf.reshape(
                 output,
                 
-                [-1, self.g_dims_H[0], self.g_dims_W[0], self.g_sizes['projection']]
+                [-1, self.g_dims_H[0], self.g_dims_W[0], self.projection]
             
             )
 
             #print('Reshaped output after projection', output.get_shape())
 
-            if self.g_sizes['bn_after_project']:
+            if self.bn_after_project:
                 output = tf.contrib.layers.batch_norm(
                 output,
                 decay=0.9, 

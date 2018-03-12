@@ -261,18 +261,20 @@ class DCVAE(object):
                                    act_f, w_init)
                 self.d_dense_layers.append(layer)
                 mi = mo
+
+            projection, bn_after_project, keep_prob, act_f, w_init = d_sizes['projection'][0]
                 
-            mo = d_sizes['projection']*dims_W[0]*dims_H[0]
+            mo = projection*dims_H[0]*dims_W[0]
 
             #final dense layer
             name = 'dec_layer_%s' %count
-            last_dec_layer = DenseLayer(name, mi, mo, not d_sizes['bn_after_project'], 1)
+
+            last_dec_layer = DenseLayer(name, mi, mo, not self.bn_after_project, keep_prob, act_f, w_init)
             self.d_dense_layers.append(last_dec_layer)
-            
             
             #fractionally strided layers
             
-            mi = d_sizes['projection']
+            mi = projection
             self.d_conv_layers=[]
             
             for i in range(len(d_sizes['conv_layers'])):
@@ -290,7 +292,8 @@ class DCVAE(object):
 
                 self.d_conv_layers.append(layer)
                 mi = mo
-            
+            self.bn_after_project = bn_after_project
+            self.projection = projection
             return self.decode(Z)
     
     def decode(self, Z, reuse=None, is_training=True):
@@ -303,10 +306,10 @@ class DCVAE(object):
 
         output = tf.reshape(
             output,
-            [-1, self.d_dims_H[0],self.d_dims_W[0],self.d_sizes['projection']]
+            [-1, self.d_dims_H[0],self.d_dims_W[0],self.projection]
         )
 
-        if self.d_sizes['bn_after_project']:
+        if self.bn_after_project:
             output = tf.contrib.layers.batch_norm(
             output,
             decay=0.9, 

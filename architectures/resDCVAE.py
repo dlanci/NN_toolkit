@@ -234,7 +234,7 @@ class resDCVAE(object):
             name = 'e_dense_layer_%s' %count
 
             last_enc_layer = DenseLayer(name, mi, 2*self.latent_dims, False, 1,
-             f=lambda x: x, w_init=tf.random_normal_initializer())
+             f=lambda x: x, w_init=e_sizes['last_layer_weight_init'])
             
             self.e_dense_layers.append(last_enc_layer)            
 
@@ -376,14 +376,20 @@ class resDCVAE(object):
             self.d_dims_W = dims_W
 
             #final dense layer
-            mo = d_sizes['projection']*dims_H[0]*dims_W[0]
-            name = 'd_dense_layer_%s' %count
 
-            layer = DenseLayer(name, mi, mo, not d_sizes['bn_after_project'], 1)
+            projection, bn_after_project, keep_prob, act_f, w_init = d_sizes['projection'][0]
+                
+            mo = projection*dims_W[0]*dims_H[0]
+
+            #final dense layer
+            name = 'dec_layer_%s' %count
+
+            layer = DenseLayer(name, mi, mo, not self.bn_after_project, keep_prob, act_f, w_init)
             self.d_dense_layers.append(layer)
 
+
             #deconvolution input channel number
-            mi = d_sizes['projection']
+            mi = projection
 
             self.d_blocks=[]
 
@@ -428,6 +434,8 @@ class resDCVAE(object):
             #saving for later
             self.d_sizes=d_sizes
 
+            self.bn_after_project = bn_after_project
+            self.projection = projection
             
             return self.decode(Z)
         
@@ -445,12 +453,12 @@ class resDCVAE(object):
         output = tf.reshape(
             output,
             
-            [-1, self.d_dims_H[0], self.d_dims_W[0], self.d_sizes['projection']]
+            [-1, self.d_dims_H[0], self.d_dims_W[0], self.projection]
         
         )
 
 
-        if self.d_sizes['bn_after_project']:
+        if self.bn_after_project:
             output = tf.contrib.layers.batch_norm(
             output,
             decay=0.9, 

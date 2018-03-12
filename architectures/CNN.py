@@ -236,10 +236,12 @@ class CNN(object):
                 self.dense_layers.append(layer)
 
             #readout layer
+            readout_w_init = conv_sizes['readout_w_init']
+            
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
                                         False, 1, tf.nn.softmax, 
-                                        tf.random_uniform_initializer(seed=self.seed))
+                                        readout_w_init)
 
             self.dense_layers.append(readout_layer)
 

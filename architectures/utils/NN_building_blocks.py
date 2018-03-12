@@ -149,8 +149,8 @@ class DenseLayer(object):
                 session: (tf session) current session
     """
     
-    def __init__(self, name, mi, mo, apply_batch_norm, keep_prob, 
-                f=tf.nn.relu, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
+    def __init__(self, name, mi, mo, apply_batch_norm, 
+                keep_prob=1, f=None, w_init=None
                 ):
         
             
@@ -295,7 +295,7 @@ class MaxPool2D(object):
 
     """
 
-    def __init__(self, filter_sz, stride, keep_prob):
+    def __init__(self, filter_sz, stride, keep_prob=1):
 
         self.filter_sz = filter_sz
         self.stride = stride
@@ -364,8 +364,8 @@ class ConvLayer(object):
 
     def __init__(
             self, name, mi, mo, filter_sz, stride, 
-                 apply_batch_norm, keep_prob, f = tf.nn.relu,
-                 w_init = tf.truncated_normal_initializer(stddev=0.02, seed=rnd_seed)
+                 apply_batch_norm, keep_prob = 1, 
+                 f = None, w_init = None
             ):
                 
             self.W = tf.get_variable(
@@ -470,8 +470,8 @@ class DeconvLayer(object):
     def __init__(self, name, 
                 mi, mo, output_shape, 
                 filter_sz, stride, 
-                apply_batch_norm, keep_prob,
-                f=tf.nn.relu, w_init = tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
+                apply_batch_norm, keep_prob = 1,
+                f=None, w_init = None
                 ):
 
                 #using resize + conv2d and not conv2dt

@@ -86,14 +86,13 @@ class DAE(object):
         self.latent_dims=e_sizes['z']
         self.e_sizes=e_sizes
         self.d_sizes=d_sizes
-
+        self.d_last_act_f = d_sizes['last_act_f']
         self.seed = seed
 
         self.img_height=img_height
         self.img_width=img_width
 
-        self.e_last_act_f = e_sizes['last_act_f']
-        self.d_last_act_f = d_sizes['last_act_f']
+
 
         self.X = tf.placeholder(
                 tf.float32,
@@ -181,10 +180,15 @@ class DAE(object):
                 self.e_layers.append(layer)
                 mi = mo
 
+            e_last_act_f = e_sizes['last_act_f']
+            e_last_w_init = e_sizes['last_w_init']
+
             name = 'layer_{0}'.format(count)
+
             last_enc_layer = DenseLayer(name, mi, self.latent_dims, False, 1,
-                self.e_last_act_f, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
+                f=e_last_act_f, w_init=e_last_w_init
                 )
+
             self.e_layers.append(last_enc_layer)
 
             return self.encode(X)
@@ -218,9 +222,10 @@ class DAE(object):
                 mi = mo
 
             name = 'layer_{0}'.format(count)
-
+            
+            d_last_w_init= d_sizes['last_w_init']
             last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
-                f=lambda x:x, w_init=tf.random_normal_initializer(stddev=0.02, seed=rnd_seed)
+                f=lambda x:x, w_init=d_last_w_init
                 )
 
             self.d_layers.append(last_dec_layer)
