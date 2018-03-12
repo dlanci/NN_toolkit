@@ -422,7 +422,6 @@ class CNN(object):
             )
 
 
-
         #convolve from input
         with tf.variable_scope('convolutional') as scope:
             scope.reuse_variables()

@@ -414,7 +414,7 @@ class ConvLayer(object):
                 scope = self.name,
             )
         output = self.f(conv_out)  
-        output = tf.nn.dropout(output, self.keep_prob, seed=1)
+        output = tf.nn.dropout(output, self.keep_prob, seed=rnd_seed)
         return output 
     
     def set_session(self, session):
