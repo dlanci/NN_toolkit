@@ -410,30 +410,30 @@ class cycleGAN(object):
                 
                         
             
-                total_iters += 1
-                if total_iters % self.save_sample ==0:
-                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
-                    print('Saving a sample...')
+                # total_iters += 1
+                # if total_iters % self.save_sample ==0:
+                #     print("At iter: %d  -  dt: %s - d_acc_B: %.2f" % (total_iters, datetime.now() - t0, d_acc))
+                #     print('Saving a sample...')
                     
                     
-                    #shape is (64,D,D,color)
-                    _, n_H, n_W, n_C = X_batch_A.shape 
+                #     #shape is (64,D,D,color)
+                #     _, n_H, n_W, n_C = X_batch_A.shape 
                     
-                    for i in range(10):
+                #     for i in range(10):
 
-                        j = np.random.choice(len(X_batch_A))
-                        sample = self.get_sample(X_batch_A[j])
+                #         j = np.random.choice(len(X_batch_A))
+                #         sample = self.get_sample(X_batch_A[j])
 
-                        plt.subplot(1,2,1)
-                        plt.imshow(X_batch_A[j].reshape(n_H,n_W), cmap='gray')
-                        plt.subplot(1,2,2)
-                        plt.imshow(sample.reshape(n_H,n_W), cmap='gray')
-                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
-                        plt.axis('off')
+                #         plt.subplot(1,2,1)
+                #         plt.imshow(X_batch_A[j].reshape(n_H,n_W), cmap='gray')
+                #         plt.subplot(1,2,2)
+                #         plt.imshow(sample.reshape(n_H,n_W), cmap='gray')
+                #         plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                #         plt.axis('off')
     
-                        fig = plt.gcf()
-                        fig.set_size_inches(5,8)
-                        plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(j, total_iters),dpi=300)
+                #         fig = plt.gcf()
+                #         fig.set_size_inches(5,8)
+                #         plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(j, total_iters),dpi=300)
 
 
                     
