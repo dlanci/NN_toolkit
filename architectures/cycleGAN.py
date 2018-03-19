@@ -327,7 +327,7 @@ class cycleGAN(object):
         d_costs_B = []
         g_costs_B = []
 
-        N = len(X)
+        N = len(X_A)
         n_batches = N // self.batch_size
     
         total_iters=0
@@ -435,18 +435,18 @@ class cycleGAN(object):
             plt.legend()
             plt.savefig(self.path+'/cost vs iteration.png')
     
-    def sample(self, Z):
+    # def sample(self, Z):
         
-        samples = self.session.run(
-            self.sample_images_test, 
-            feed_dict={self.Z:Z, self.batch_sz: self.batch_size})
+    #     samples = self.session.run(
+    #         self.sample_images_test, 
+    #         feed_dict={self.Z:Z, self.batch_sz: self.batch_size})
 
-        return samples 
+    #     return samples 
 
-    def get_sample(self, Z):
+    # def get_sample(self, Z):
         
-        one_sample = self.session.run(
-            self.sample_images_test, 
-            feed_dict={self.Z:Z, self.batch_sz: 1})
+    #     one_sample = self.session.run(
+    #         self.sample_images_test, 
+    #         feed_dict={self.Z:Z, self.batch_sz: 1})
 
-        return one_sample 
+    #     return one_sample 
