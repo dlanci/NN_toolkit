@@ -117,8 +117,8 @@ class cycleGAN(object):
             name='batch_sz'
         )
 
-        D_A = resDiscriminator(self.input_A, d_sizes_A, 'A')
-        D_B = resDiscriminator(self.input_B, d_sizes_B, 'B')
+        D_A = Discriminator(self.input_A, d_sizes_A, 'A')
+        D_B = Discriminator(self.input_B, d_sizes_B, 'B')
 
         G_A_to_B = cycleGenerator(self.input_A, self.n_H, self.n_W, g_sizes_A, 'A_to_B')
         G_B_to_A = cycleGenerator(self.input_B, self.n_H, self.n_W, g_sizes_B, 'B_to_A')
@@ -127,36 +127,36 @@ class cycleGAN(object):
         #first cycle (A to B)
         with tf.variable_scope('discriminator_A') as scope:
             
-            self.logits_A = D_A.d_forward(self.input_A)
+            logits_A = D_A.d_forward(self.input_A)
 
         with tf.variable_scope('generator_A_to_B') as scope:
 
-            self.sample_images_B = G_A_to_B.g_forward(self.input_A)
+            sample_images_B = G_A_to_B.g_forward(self.input_A)
 
         with tf.variable_scope('discriminator_B') as scope:
-            scope.reuse_variables()
-            self.sample_logits_B = D_B.d_forward(self.sample_images_B, reuse=True)
+
+            sample_logits_B = D_B.d_forward(sample_images_B)
         
         with tf.variable_scope('generator_B_to_A') as scope:
-            scope.reuse_variables()
-            self.cycl_A = G_B_to_A.g_forward(self.sample_images_B, reuse=True)
+            
+            cycl_A = G_B_to_A.g_forward(sample_images_B)
 
         #second cycle (B to A)
         with tf.variable_scope('discriminator_B') as scope:
-            
-            self.logits_B = D_B.d_forward(self.input_B)
+            scope.reuse_variables()
+            logits_B = D_B.d_forward(self.input_B,reuse=True)
 
         with tf.variable_scope('generator_B_to_A') as scope:
-
-            self.sample_images_A = G_B_to_A.g_forward(self.input_B)
+            scope.reuse_variables()
+            sample_images_A = G_B_to_A.g_forward(self.input_B, reuse=True)
 
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
-            self.sample_logits_A = D_A.d_forward(self.sample_images_A, reuse=True)
+            sample_logits_A = D_A.d_forward(sample_images_A, reuse=True)
         
         with tf.variable_scope('generator_A_to_B') as scope:
             scope.reuse_variables()
-            self.cycl_B = G_A_to_B.g_forward(self.sample_images_A, reuse=True)
+            cycl_B = G_A_to_B.g_forward(sample_images_A, reuse=True)
 
         # get sample images for test time
         with tf.variable_scope('generator_A_to_B') as scope:
@@ -170,12 +170,12 @@ class cycleGAN(object):
         #Discriminators cost
         #cost is low if real images are predicted as real (1)
         d_cost_real_A = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.logits_A,
+            logits=logits_A,
             labels=tf.ones_like(logits_A)
         )
         #cost is low if fake generated images are predicted as fake (0)
         d_cost_fake_A = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.sample_logits_A,
+            logits=sample_logits_A,
             labels=tf.zeros_like(sample_logits_A)
         )
         
@@ -184,12 +184,12 @@ class cycleGAN(object):
         
 
         d_cost_real_B = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.logits_B,
+            logits=logits_B,
             labels=tf.ones_like(logits_B)
         )
         
         d_cost_fake_B = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.sample_logits_B,
+            logits=sample_logits_B,
             labels=tf.zeros_like(sample_logits_B)
         )
         #discriminator_B cost
@@ -202,19 +202,19 @@ class cycleGAN(object):
         #cost is low if logits from discriminator A are predicted as true (1)
         g_cost_A = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=self.sample_logits_A,
-                labels=tf.ones_like(self.sample_logits_A)
+                logits=sample_logits_A,
+                labels=tf.ones_like(sample_logits_A)
             )
         )
         #cost is low if logits from discriminator B are predicted as true (1)
         g_cost_B = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=self.sample_logits_B,
-                labels=tf.ones_like(self.sample_logits_B)
+                logits=sample_logits_B,
+                labels=tf.ones_like(sample_logits_B)
             )
         )
         #cycle cost is low if cyclic images are similar to input images (in both sets)
-        g_cycle_cost = tf.reduce_mean(tf.abs(self.input_A-self.cycl_A)) + tf.reduce_mean(tf.abs(self.input_B-self.cycl_B))
+        g_cycle_cost = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) + tf.reduce_mean(tf.abs(self.input_B-cycl_B))
 
 
         self.g_cost_A = g_cost_A + 10*g_cycle_cost
@@ -299,19 +299,16 @@ class cycleGAN(object):
         
         self.session = session
         
-        for block in self.D_A.d_blocks:
+        for block in self.D_A.d_conv_layers:
             block.set_session(session)
                 
         for layer in self.D_A.d_dense_layers:
             layer.set_session(session)
-        
-        for block in self.G_A_to_B.g_blocks:
-            block.set_session(session)
-                
-        for layer in self.G_A_to_B.g_dense_layers:
+
+        for layer in self.G_A_to_B.g_blocks:
             layer.set_session(session)
 
-        for block in self.D_B.d_blocks:
+        for block in self.D_B.d_conv_layers:
             block.set_session(session)
                 
         for layer in self.D_B.d_dense_layers:
@@ -320,10 +317,8 @@ class cycleGAN(object):
         for block in self.G_B_to_A.g_blocks:
             block.set_session(session)
                 
-        for layer in self.G_B_to_A.g_dense_layers:
-            layer.set_session(session)
     
-    def fit(self, X):
+    def fit(self, X_A, X_B):
 
         seed = self.seed
         d_costs_A = []

@@ -611,49 +611,70 @@ class cycleGenerator(object):
                 count = 0
                     
                 #checking generator architecture
-
-                g_steps = 0
+                g_steps=0
                 for key in g_sizes:
+                    g_steps+=1
+
+                g_convs = 0
+                g_deconvs = 0
+
+                g_conv_blocks = 0
+                #g_deconv_blocks = 0
+
+                for key in g_sizes:
+
+                    if 'conv' in key:
+                        if not 'deconv' in key:
+                                if not 'block' in key:
+                                    g_convs+=1
+                    if 'convblock' and 'shortcut' in key:
+                        # if not 'deconv' in key:
+                            g_conv_blocks+=1
+
+                    # if 'deconvblock' and 'shortcut' in key:
+                    #     g_deconv_blocks+=1
+                        
                     if 'deconv' in key:
                         if not 'shortcut' in key:
-                             g_steps+=1
+                             g_deconvs+=1
                 
-                #assert g_steps == self.d_steps, '\nUnmatching discriminator/generator architecture'
-
-                g_block_n=0
-                g_layer_n=0
-
-                for key in g_sizes:
-                    if 'block' and 'shortcut' in key:
-                        g_block_n+=1
-                    if 'deconv_layer' in key:
-                        g_layer_n +=1
-
-                assert g_block_n+g_layer_n==g_steps, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers and convolutional blocks'
+                assert g_steps == g_convs +2*(g_conv_blocks)+ g_deconvs, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers, convolutional blocks and deconv layers'
 
                 #dimensions of output generated image
                 
-                layers_output_sizes={}
+                conv_layers_output_sizes={}
+                deconv_layers_output_sizes={}
                 blocks_output_sizes={}
 
                 for key, item in reversed(list(g_sizes.items())):
+
+                    if 'conv_layer' in key:
+                        if not 'deconv' in key:
+                            _, _, stride, _, _, _, _, = g_sizes[key][0]
+                            conv_layers_output_sizes[g_convs-1] = [dim_H, dim_W]
+
+                            dim_H = int(np.ceil(float(dim_H)/stride))
+                            dim_W = int(np.ceil(float(dim_W)/stride))
+                            dims_H.append(dim_H)
+                            dims_W.append(dim_W)
+
+                            g_convs -= 1
 
                     if 'deconv_layer' in key:
                         
                         
                         _, _, stride, _, _, _, _, = g_sizes[key][0]
-                        layers_output_sizes[g_layer_n-1]= [dim_H, dim_W]
+                        deconv_layers_output_sizes[g_deconvs-1]= [dim_H, dim_W]
                         
                         dim_H = int(np.ceil(float(dim_H)/stride))
                         dim_W = int(np.ceil(float(dim_W)/stride))
                         dims_H.append(dim_H)
                         dims_W.append(dim_W)
                         
-                        g_layer_n -= 1
+                        g_deconvs -= 1
 
                       
-                    if 'deconvblock_layer' in key:
-                        
+                    if 'convblock_layer' in key:
                         
                         for _ ,_ , stride, _, _, _, _, in g_sizes[key]:
                         
@@ -662,9 +683,11 @@ class cycleGenerator(object):
                             dims_H.append(dim_H)
                             dims_W.append(dim_W)
                         
-                        blocks_output_sizes[g_block_n-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
-                        g_block_n -=1
+                        blocks_output_sizes[g_conv_blocks-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
+                        g_conv_blocks -=1
 
+
+                
                 dims_H = list(reversed(dims_H))
                 dims_W = list(reversed(dims_W))
 
@@ -679,18 +702,37 @@ class cycleGenerator(object):
                 self.g_blocks=[]
 
                 block_n=0 #keep count of the block number
-                layer_n=0 #keep count of conv layer number
-                i=0
+                conv_layer_n=0 #keep count of conv layer number
+                deconv_layer_n=0 #keep count of deconv layer number
+                i=0 # keep count of the built blocks
                 for key in g_sizes:
+
+                    if 'conv_layer' in key:
+
+                        name = 'g_conv_layer_{0}'.format(conv_layer_n)
+
+                        mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
+
+                        g_conv_layer = ConvLayer(
+                            name, mi, mo, 
+                            filter_sz, stride, apply_batch_norm, keep_prob,
+                            act_f, w_init
+                            )
+                        self.g_blocks.append(g_conv_layer)
+                        mi = mo
+                        conv_layer_n +=1
+                        count +=1
+                        i+=1
+
                     
                     if 'block' and 'shortcut' in key:
                     
-                        g_block = DeconvBlock(block_n,
-                                   mi, blocks_output_sizes, g_sizes,
+                        g_block = ConvBlock(block_n,
+                                   mi, g_sizes,
                                    )
                         self.g_blocks.append(g_block)
                         
-                        mo, _, _, _, _, _, _, = g_sizes['deconvblock_layer_'+str(block_n)][-1]
+                        mo, _, _, _, _, _, _, = g_sizes['convblock_layer_'+str(block_n)][-1]
                         mi = mo
                         block_n+=1
                         count+=1 
@@ -698,24 +740,24 @@ class cycleGenerator(object):
                         
                     if 'deconv_layer' in key:
 
-                        name = 'g_conv_layer_{0}'.format(layer_n)
+                        name = 'g_deconv_layer_{0}'.format(deconv_layer_n)
 
                         mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
 
-                        g_conv_layer = DeconvLayer(
-                            name, mi, mo, layers_output_sizes[layer_n],
+                        g_deconv_layer = DeconvLayer(
+                            name, mi, mo, deconv_layers_output_sizes[deconv_layer_n],
                             filter_sz, stride, apply_batch_norm, keep_prob,
                             act_f, w_init
                         )
-                        self.g_blocks.append(g_conv_layer)
+                        self.g_blocks.append(g_deconv_layer)
 
                         mi=mo
-                        layer_n+=1
+                        deconv_layer_n+=1
                         count+=1 
                         i+=1
 
-                assert i==g_steps, 'Check convolutional layer and block building, steps in building do not coincide with g_steps'
-                assert g_steps==block_n+layer_n, 'Check keys in g_sizes'
+                assert i==block_n+conv_layer_n+deconv_layer_n, 'Check convolutional layer and block building, steps in building do not coincide with g_steps'
+
                 #saving for later
                 self.g_sizes=g_sizes
                 self.g_name = g_name
@@ -723,7 +765,6 @@ class cycleGenerator(object):
    
     def g_forward(self, X, reuse=None, is_training=True):
             print('Generator_'+self.g_name)
-            print('Deconvolution')
             #dense layers
 
             output = X
