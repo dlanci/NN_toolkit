@@ -158,11 +158,18 @@ class cycleGAN(object):
             scope.reuse_variables()
             cycl_B = G_A_to_B.g_forward(sample_images_A, reuse=True)
 
+
+        self.input_test = tf.placeholder(
+            tf.float32,
+            shape=(None, 
+                   n_H, n_W, n_C),
+            name='X_A',
+        )
         # get sample images for test time
         with tf.variable_scope('generator_A_to_B') as scope:
             scope.reuse_variables()
             self.sample_images_test = G_A_to_B.g_forward(
-                self.input_A, reuse=True, is_training=False
+                self.input_test, reuse=True, is_training=False
             )
             
         #cost building
@@ -404,28 +411,29 @@ class cycleGAN(object):
                         
             
                 total_iters += 1
-                # if total_iters % self.save_sample ==0:
-                #     print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
-                #     print('Saving a sample...')
-                    
-                #     Z = np.random.uniform(-1,1, size=(self.batch_size,self.latent_dims))
-                    
-                #     samples = self.sample(Z)#shape is (64,D,D,color)
-                    
-                #     w = self.n_W
-                #     h = self.n_H
-                #     samples = samples.reshape(self.batch_size, h, w)
+                if total_iters % self.save_sample ==0:
+                    print("At iter: %d  -  dt: %s - d_acc: %.2f" % (total_iters, datetime.now() - t0, d_acc))
+                    print('Saving a sample...')
                     
                     
-                #     for i in range(64):
-                #         plt.subplot(8,8,i+1)
-                #         plt.imshow(samples[i].reshape(h,w), cmap='gray')
-                #         plt.subplots_adjust(wspace=0.2,hspace=0.2)
-                #         plt.axis('off')
+                    #shape is (64,D,D,color)
+                    _, n_H, n_W, n_C = X_batch_A.shape 
                     
-                #     fig = plt.gcf()
-                #     fig.set_size_inches(5,7)
-                #     plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
+                    for i in range(10):
+
+                        j = np.random.choice(len(X_batch_A))
+                        sample = self.get_sample(X_batch_A[j])
+
+                        plt.subplot(1,2,1)
+                        plt.imshow(X_batch_A[j].reshape(n_H,n_W), cmap='gray')
+                        plt.subplot(1,2,2)
+                        plt.imshow(sample.reshape(n_H,n_W), cmap='gray')
+                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                        plt.axis('off')
+    
+                        fig = plt.gcf()
+                        fig.set_size_inches(5,8)
+                        plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(j, total_iters),dpi=300)
 
 
                     
@@ -443,10 +451,10 @@ class cycleGAN(object):
 
     #     return samples 
 
-    # def get_sample(self, Z):
+    def get_sample(self, Z):
         
-    #     one_sample = self.session.run(
-    #         self.sample_images_test, 
-    #         feed_dict={self.Z:Z, self.batch_sz: 1})
+        one_sample = self.session.run(
+            self.sample_images_test, 
+            feed_dict={self.input_test:test_A, self.batch_sz: 1})
 
-    #     return one_sample 
+        return one_sample 
