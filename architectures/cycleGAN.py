@@ -446,7 +446,7 @@ class cycleGAN(object):
                         plt.subplot(1,2,1)
                         plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
                         plt.subplot(1,2,2)
-                        plt.imshow(sample)
+                        plt.imshow(sample.reshape(n_H,n_W,n_C))
                         plt.subplots_adjust(wspace=0.2,hspace=0.2)
                         plt.axis('off')
     
