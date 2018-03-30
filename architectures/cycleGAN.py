@@ -490,7 +490,7 @@ class cycleGAN(object):
     def get_sample(self, Z):
         
         one_sample = self.session.run(
-            self.sample_images_test_B, 
-            feed_dict={self.input_test_A_to_B:Z, self.batch_sz: 1})
+            self.sample_images_test_B_to_A, 
+            feed_dict={self.input_test_B:Z, self.batch_sz: 1})
 
         return one_sample 
