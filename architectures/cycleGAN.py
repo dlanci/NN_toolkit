@@ -168,7 +168,7 @@ class cycleGAN(object):
         # get sample images for test time
         with tf.variable_scope('generator_A_to_B') as scope:
             scope.reuse_variables()
-            self.sample_images_test = G_A_to_B.g_forward(
+            self.sample_images_test_A_to_B = G_A_to_B.g_forward(
                 self.input_test_A, reuse=True, is_training=False
             )
 
@@ -181,7 +181,7 @@ class cycleGAN(object):
 
         with tf.variable_scope('generator_B_to_A') as scope:
             scope.reuse_variables()
-            self.sample_images_test = G_B_to_A.g_forward(
+            self.sample_images_test_B_to_A = G_B_to_A.g_forward(
                 self.input_test_B, reuse=True, is_training=False
             )
             
@@ -490,7 +490,7 @@ class cycleGAN(object):
     def get_sample(self, Z):
         
         one_sample = self.session.run(
-            self.sample_images_test, 
-            feed_dict={self.input_test:Z, self.batch_sz: 1})
+            self.sample_images_test_B, 
+            feed_dict={self.input_test_A_to_B:Z, self.batch_sz: 1})
 
         return one_sample 
