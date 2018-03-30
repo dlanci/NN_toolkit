@@ -450,7 +450,7 @@ class cycleGAN(object):
                         X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
                         sample = self.get_sample(X_batch_A)
                         
-                        sample=sample*self.std_B+mean_B
+                        sample=sample*self.std_B+self.mean_B
 
                         plt.subplot(1,2,1)
                         plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
