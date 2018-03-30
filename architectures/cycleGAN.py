@@ -32,6 +32,7 @@ class cycleGAN(object):
     def __init__(
         self, 
         n_H, n_W, n_C,
+        mean_A, std_A, mean_B, std_B,
         d_sizes_A, d_sizes_B, g_sizes_A, g_sizes_B,
         lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
@@ -81,6 +82,12 @@ class cycleGAN(object):
             - path = relative path for saving samples
 
         """
+        self.mean_B = mean_B
+        self.mean_A = mean_A
+
+        self.std_A = std_A
+        self.std_B = std_B
+
         self.seed=seed
         self.n_W = n_W
         self.n_H = n_H
@@ -443,6 +450,8 @@ class cycleGAN(object):
                         X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
                         sample = self.get_sample(X_batch_A)
                         
+                        sample=sample*self.std_B+mean_B
+
                         plt.subplot(1,2,1)
                         plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
                         plt.subplot(1,2,2)
