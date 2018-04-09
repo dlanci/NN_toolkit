@@ -441,6 +441,7 @@ class cycleGAN(object):
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
+                    print("At iter: %d  -  dt: %s - d_acc_A: %.2f" % (total_iters, datetime.now() - t0, d_acc_A))
                     print("At iter: %d  -  dt: %s - d_acc_B: %.2f" % (total_iters, datetime.now() - t0, d_acc_B))
                     print('Saving a sample...')
                     
