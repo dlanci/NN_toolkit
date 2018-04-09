@@ -417,7 +417,7 @@ class cycleGAN(object):
                 )
                 
                 _, g_cost_B2, fake_images_A_temp =  self.session.run(
-                    (self.g_train_op_B, self.g_cost_B,, self.sample_images_A),
+                    (self.g_train_op_B, self.g_cost_B, self.sample_images_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
