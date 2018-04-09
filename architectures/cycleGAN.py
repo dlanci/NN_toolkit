@@ -388,12 +388,12 @@ class cycleGAN(object):
                 #discriminator learns too fast
                 
                 _, g_cost_A1, fake_images_B_temp =  self.session.run(
-                    (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
+                    (self.g_train_op_A, self.g_cost_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
                 
                 _, g_cost_A2 =  self.session.run(
-                    (self.g_train_op_A, self.g_cost_A),
+                    (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
@@ -416,8 +416,8 @@ class cycleGAN(object):
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
                 
-                _, g_cost_B2 =  self.session.run(
-                    (self.g_train_op_B, self.g_cost_B),
+                _, g_cost_B2, fake_images_A_temp =  self.session.run(
+                    (self.g_train_op_B, self.g_cost_B,, self.sample_images_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
