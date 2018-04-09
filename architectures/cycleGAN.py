@@ -151,7 +151,7 @@ class cycleGAN(object):
         #second cycle (B to A)
         with tf.variable_scope('discriminator_B') as scope:
             scope.reuse_variables()
-            logits_B = D_B.d_forward(self.input_B,reuse=True)
+            logits_B = D_B.d_forward(self.input_B, reuse=True)
 
         with tf.variable_scope('generator_B_to_A') as scope:
             scope.reuse_variables()
@@ -450,7 +450,7 @@ class cycleGAN(object):
                         X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
                         sample = self.get_sample(X_batch_A)
                         
-                        sample=sample*self.std_B+self.mean_B
+                        # sample=sample*self.std_B+self.mean_B
 
                         plt.subplot(1,2,1)
                         plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
@@ -461,7 +461,6 @@ class cycleGAN(object):
     
                         fig = plt.gcf()
                         fig.set_size_inches(5,8)
-                        plt.show()
                         plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(j, total_iters),dpi=300)
 
 
