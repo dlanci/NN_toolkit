@@ -448,24 +448,24 @@ class cycleGAN(object):
                     #shape is (64,D,D,color)
                     _, n_H, n_W, n_C = X_batch_A.shape 
                     
-                    for i in range(10):
+                    #for i in range(10):
 
-                        j = np.random.choice(len(X_batch_A))
-                        X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
-                        sample = self.get_sample(X_batch_A)
-                        
-                        # sample=sample*self.std_B+self.mean_B
+                    j = np.random.choice(len(X_batch_A))
+                    X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
+                    sample = self.get_sample(X_batch_A)
+                    
+                    # sample=sample*self.std_B+self.mean_B
 
-                        plt.subplot(1,2,1)
-                        plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
-                        plt.subplot(1,2,2)
-                        plt.imshow(sample.reshape(n_H,n_W,n_C))
-                        plt.subplots_adjust(wspace=0.2,hspace=0.2)
-                        plt.axis('off')
-    
-                        fig = plt.gcf()
-                        fig.set_size_inches(5,8)
-                        plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(i, total_iters),dpi=300)
+                    plt.subplot(1,2,1)
+                    plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
+                    plt.subplot(1,2,2)
+                    plt.imshow(sample.reshape(n_H,n_W,n_C))
+                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                    plt.axis('off')
+
+                    fig = plt.gcf()
+                    fig.set_size_inches(5,8)
+                    plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(i, total_iters),dpi=300)
 
 
                     
