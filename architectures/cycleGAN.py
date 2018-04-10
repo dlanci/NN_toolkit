@@ -465,7 +465,7 @@ class cycleGAN(object):
                     sample = self.get_sample(X_batch_A)
                     
                     sample=sample*self.std_B+self.mean_B
-                    
+
                     sample[np.where(sample<0)]=0
                     sample[np.where(sample>255)]=255
 
@@ -480,7 +480,7 @@ class cycleGAN(object):
 
                     fig = plt.gcf()
                     fig.set_size_inches(5,8)
-                    plt.savefig(self.path+'/sample_{0}_at_iter_{1}.png'.format(j, total_iters),dpi=300)
+                    plt.savefig(self.path+'/sample_at_iter_{1}.png'.format(total_iters),dpi=300)
 
 
                     
