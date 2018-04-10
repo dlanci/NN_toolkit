@@ -453,8 +453,8 @@ class cycleGAN(object):
                     #X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
                     X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
 
-                    X_batch_A=X_batch_A*std_A+mean_A
-                    X_batch_B=X_batch_B*std_B+mean_B
+                    X_batch_A=X_batch_A*self.std_A+self.mean_A
+                    X_batch_B=X_batch_B*self.std_B+self.mean_B
 
                     X_batch_A[np.where(X_batch_A<0)]=0
                     X_batch_B[np.where(X_batch_B<0)]=0
@@ -465,6 +465,9 @@ class cycleGAN(object):
                     sample = self.get_sample(X_batch_A)
                     
                     sample=sample*self.std_B+self.mean_B
+                    
+                    sample[np.where(sample<0)]=0
+                    sample[np.where(sample>255)]=255
 
                     plt.subplot(1,2,1)
                     plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
