@@ -480,7 +480,7 @@ class cycleGAN(object):
 
                     fig = plt.gcf()
                     fig.set_size_inches(5,8)
-                    plt.savefig(self.path+'/sample_at_iter_{1}.png'.format(total_iters),dpi=300)
+                    plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=300)
 
 
                     
