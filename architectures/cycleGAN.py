@@ -449,9 +449,9 @@ class cycleGAN(object):
                     
                     #for i in range(10):
 
-                    #j = np.random.choice(len(X_batch_A))
-                    #X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
-                    X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
+                    j = np.random.choice(len(X_batch_A))
+                    X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
+                    #X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
                     X_batch_A=X_batch_A*self.std_A+self.mean_A
                     
 
