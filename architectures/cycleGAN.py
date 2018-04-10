@@ -408,8 +408,8 @@ class cycleGAN(object):
                     (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
-
-                g_costs_A.append((g_cost_A1+g_cost_A2)/2) # just use the avg    
+                g_cost_A = (g_cost_A1+g_cost_A2)/2
+                g_costs_A.append(g_cost_A) # just use the avg    
 
                 
                 #optimize discriminator_B
@@ -433,13 +433,16 @@ class cycleGAN(object):
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
-                g_costs_B.append((g_cost_B1+g_cost_B2)/2) # just use the avg    
+                g_cost_B = (g_cost_B1+g_cost_B2)/2
+                g_costs_B.append(g_cost_B) # just use the avg   
 
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
                     print("At iter: %d  -  dt: %s - d_acc_A: %.2f" % (total_iters, datetime.now() - t0, d_acc_A))
                     print("At iter: %d  -  dt: %s - d_acc_B: %.2f" % (total_iters, datetime.now() - t0, d_acc_B))
+                    print("Discrimator_A cost {0}, Generator_A_to_B cost {1}".format(d_cost_A, g_cost_A))
+                    print("Discrimator_B cost {0}, Generator_B_to_A cost {1}".format(d_cost_B, g_cost_B))
                     print('Saving a sample...')
                     
                     
@@ -456,10 +459,12 @@ class cycleGAN(object):
 
                     plt.subplot(1,2,1)
                     plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
+                    plt.axis('off')
                     plt.subplot(1,2,2)
                     plt.imshow(sample.reshape(n_H,n_W,n_C))
-                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     plt.axis('off')
+                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
+                    
 
                     fig = plt.gcf()
                     fig.set_size_inches(5,8)
