@@ -385,12 +385,20 @@ class cycleGAN(object):
                 
                 t0 = datetime.now()
                 
+                #optimize discriminator_A
+
+                _, d_cost_A, d_acc_A = self.session.run(
+                    (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
+                )
+
+                d_costs_A.append(d_cost_A)
 
                 #optimize generator_A 
 
                 #train the generator averaging two costs if the
                 #discriminator learns too fast
-                
+
                 _, g_cost_A1 =  self.session.run(
                     (self.g_train_op_A, self.g_cost_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
@@ -403,7 +411,7 @@ class cycleGAN(object):
 
                 g_costs_A.append((g_cost_A1+g_cost_A2)/2) # just use the avg    
 
-                #fake_images_B_temp = self.fake_image_pool(self.num_fake_inputs, fake_images_B_temp, self.fake_images_B)
+                
                 #optimize discriminator_B
 
                 _, d_cost_B, d_acc_B = self.session.run(
@@ -427,17 +435,6 @@ class cycleGAN(object):
 
                 g_costs_B.append((g_cost_B1+g_cost_B2)/2) # just use the avg    
 
-                #optimize discriminator_A
-
-                
-                _, d_cost_A, d_acc_A = self.session.run(
-                    (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
-
-                d_costs_A.append(d_cost_A)
-                
-                        
             
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
