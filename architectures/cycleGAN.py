@@ -451,6 +451,7 @@ class cycleGAN(object):
                     #for i in range(10):
 
                     j = np.random.choice(len(X_batch_A))
+
                     X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
                     #X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
                     
@@ -459,12 +460,12 @@ class cycleGAN(object):
 
                     plt.subplot(1,2,1)
                     X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
-                    plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
+                    plt.imshow(X_batch_A.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
 
                     plt.subplot(1,2,2)
                     sample=(sample*self.std_B+self.mean_B).astype(np.int32)
-                    plt.imshow(sample.reshape(n_H,n_W,n_C))
+                    plt.imshow(sample.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
