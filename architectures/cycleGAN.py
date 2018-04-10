@@ -245,11 +245,12 @@ class cycleGAN(object):
             )
         )
         #cycle cost is low if cyclic images are similar to input images (in both sets)
-        g_cycle_cost = tf.reduce_mean(tf.squared_difference(self.input_A,cycl_A)) + tf.reduce_mean(tf.squared_difference(self.input_B,cycl_B))
+        g_cycle_cos_A = tf.reduce_mean(tf.squared_difference(self.input_A,cycl_A)) 
+        g_cycle_cost_B = tf.reduce_mean(tf.squared_difference(self.input_B,cycl_B))
 
 
-        self.g_cost_A = g_cost_A + g_cycle_cost
-        self.g_cost_B = g_cost_B + g_cycle_cost
+        self.g_cost_A = g_cost_A + g_cycle_cost_A
+        self.g_cost_B = g_cost_B + g_cycle_cost_B
 
 
         
