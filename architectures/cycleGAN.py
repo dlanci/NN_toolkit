@@ -93,8 +93,6 @@ class cycleGAN(object):
         self.n_H = n_H
         self.n_C = n_C
         
-        #self.latent_dims = g_sizes['z']
-        
         #input data
         
         self.input_A = tf.placeholder(
@@ -250,8 +248,8 @@ class cycleGAN(object):
         g_cycle_cost = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) + tf.reduce_mean(tf.abs(self.input_B-cycl_B))
 
 
-        self.g_cost_A = g_cost_A + 10*g_cycle_cost
-        self.g_cost_B = g_cost_B + 10*g_cycle_cost
+        self.g_cost_A = g_cost_A + 5*g_cycle_cost
+        self.g_cost_B = g_cost_B + 5*g_cycle_cost
 
 
         
@@ -446,16 +444,27 @@ class cycleGAN(object):
                     print('Saving a sample...')
                     
                     
-                    #shape is (64,D,D,color)
+                    #shape is (1,D,D,color)
                     _, n_H, n_W, n_C = X_batch_A.shape 
                     
                     #for i in range(10):
 
-                    j = np.random.choice(len(X_batch_A))
-                    X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
+                    #j = np.random.choice(len(X_batch_A))
+                    #X_batch_A= X_batch_A[j].reshape(1,n_H,n_W,n_C)
+                    X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
+
+                    X_batch_A=X_batch_A*std_A+mean_A
+                    X_batch_B=X_batch_B*std_B+mean_B
+
+                    X_batch_A[np.where(X_batch_A<0)]=0
+                    X_batch_B[np.where(X_batch_B<0)]=0
+
+                    X_batch_A[np.where(X_batch_A>255)]=255
+                    X_batch_B[np.where(X_batch_B>255)]=255
+
                     sample = self.get_sample(X_batch_A)
                     
-                    # sample=sample*self.std_B+self.mean_B
+                    sample=sample*self.std_B+self.mean_B
 
                     plt.subplot(1,2,1)
                     plt.imshow(X_batch_A.reshape(n_H,n_W,n_C))
