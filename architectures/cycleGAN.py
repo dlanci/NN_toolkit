@@ -248,8 +248,8 @@ class cycleGAN(object):
         g_cycle_cost = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) + tf.reduce_mean(tf.abs(self.input_B-cycl_B))
 
 
-        self.g_cost_A = g_cost_A + 5*g_cycle_cost
-        self.g_cost_B = g_cost_B + 5*g_cycle_cost
+        self.g_cost_A = g_cost_A + g_cycle_cost
+        self.g_cost_B = g_cost_B + g_cycle_cost
 
 
         
