@@ -774,7 +774,7 @@ class cycleGenerator(object):
             #dense layers
 
             output = X
-            print('Input for deconvolution shape', X.get_shape())
+            print('Input for generator shape', X.get_shape())
             
             i=0
             for block in self.g_blocks:
@@ -782,11 +782,11 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                print('After deconvolutional block %i' %i)
+                print('After'+block.name)
                 print('shape: ', output.get_shape())
         
 
-            print('Deconvoluted output shape', output.get_shape())
+            print('Generator output shape', output.get_shape())
             return output
 
 
