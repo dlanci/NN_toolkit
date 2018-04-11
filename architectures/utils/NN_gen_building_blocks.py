@@ -603,7 +603,7 @@ class cycleGenerator(object):
         dims_H =[dim_H]
         dims_W =[dim_W]
 
-        for key in d_sizes:
+        for key in g_sizes:
 
             if 'block' in key:
                 print('Residual Convolutional Network architecture detected')
