@@ -480,6 +480,8 @@ class cycleGAN(object):
             plt.plot(d_costs_A, label='discriminator cost')
             plt.plot(g_costs_B, label='generator cost')
             plt.legend()
+            fig = plt.gcf()
+            fig.set_size_inches(5,8)
             plt.savefig(self.path+'/cost vs iteration.png')
     
     # def sample(self, Z):
