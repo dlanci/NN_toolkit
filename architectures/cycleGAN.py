@@ -452,26 +452,42 @@ class cycleGAN(object):
 
                     j = np.random.choice(len(X_batch_A))
 
-                    X_batch_A= X_batch_A[j]
+                    X_batch_A = X_batch_A[j]
+                    X_batch_B = X_batch_B[j]
+
                     #X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
                     
-                    sample = self.get_sample(X_batch_A.reshape(1,n_H,n_W,n_C))
+                    sample_B = self.get_sample_A_to_B(X_batch_A.reshape(1,n_H,n_W,n_C))
+                    sample_A = self.get_sample_B_to_A(X_batch_B.reshape(1,n_H,n_W,n_C))
 
 
-                    plt.subplot(1,2,1)
+                    plt.subplot(2,2,1)
                     X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
+                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
-                    plt.subplot(1,2,2)
-                    sample=(sample*self.std_B+self.mean_B).astype(np.int32)
-                    plt.imshow(sample.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.subplot(2,2,2)
+                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int32)
+                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.axis('off')
+                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
+
+                    plt.subplot(2,2,3)
+                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int32)
+                    plt.imshow(X_batch_B.astype(np.int32))
+                    plt.axis('off')
+                    plt.subplots_adjust(wspace=0.2,hspace=0.2)
+
+                    plt.subplot(2,2,4)
+                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int32)
+                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
 
                     fig = plt.gcf()
-                    fig.set_size_inches(5,8)
+                    fig.set_size_inches(10,8)
                     plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=150)
 
 
