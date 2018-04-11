@@ -455,7 +455,7 @@ class cycleGAN(object):
                     X_batch_A= X_batch_A[j]
                     #X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
                     
-                    sample = self.get_sample(X_batch_A)
+                    sample = self.get_sample(X_batch_A.reshape(1,n_H,n_W,n_C))
 
 
                     plt.subplot(1,2,1)
