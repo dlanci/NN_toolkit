@@ -472,7 +472,7 @@ class cycleGAN(object):
 
                     fig = plt.gcf()
                     fig.set_size_inches(5,8)
-                    plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=300)
+                    plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=150)
 
 
                     
@@ -481,8 +481,8 @@ class cycleGAN(object):
             plt.plot(g_costs_B, label='generator cost')
             plt.legend()
             fig = plt.gcf()
-            fig.set_size_inches(5,8)
-            plt.savefig(self.path+'/cost vs iteration.png')
+            fig.set_size_inches(8,5)
+            plt.savefig(self.path+'/cost vs iteration.png',dpi=150)
     
     # def sample(self, Z):
         
