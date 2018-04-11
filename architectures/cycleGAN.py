@@ -249,8 +249,8 @@ class cycleGAN(object):
         g_cycle_cost_B = tf.reduce_mean(tf.squared_difference(self.input_B,cycl_B))
 
 
-        self.g_cost_A = g_cost_A + g_cycle_cost_A
-        self.g_cost_B = g_cost_B + g_cycle_cost_B
+        self.g_cost_A = g_cost_A + 10*g_cycle_cost_A
+        self.g_cost_B = g_cost_B + 10*g_cycle_cost_B
 
 
         
@@ -460,8 +460,6 @@ class cycleGAN(object):
 
                     plt.subplot(1,2,1)
                     X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
-                    print(self.std_A.shape)
-                    print(self.std_A)
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
 
