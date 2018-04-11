@@ -782,7 +782,7 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                print('After'+block.name)
+                print('After block step %i' %i)
                 print('shape: ', output.get_shape())
         
 
