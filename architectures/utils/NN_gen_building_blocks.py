@@ -92,25 +92,25 @@ class Discriminator(object):
             i=0
             for layer in self.d_conv_layers:
                 i+=1
-                # print('Convolution_layer_%i' %i)
-                # print('Input shape', output.get_shape())
+                print('Convolution_layer_%i' %i)
+                print('Input shape', output.get_shape())
                 output = layer.forward(output,
                                      reuse, 
                                      is_training)
-                #print('After convolution shape', output.get_shape())
+                print('After convolution shape', output.get_shape())
             
             output = tf.contrib.layers.flatten(output)
-            #print('After flatten shape', output.get_shape())
+            print('After flatten shape', output.get_shape())
             i=0
             for layer in self.d_dense_layers:
-                #print('Dense weights %i' %i)
+                print('Dense weights %i' %i)
                 print(layer.W.get_shape())
                 output = layer.forward(output,
                                        reuse,
                                        is_training)
                 i+=1
-                #print('After dense layer_%i' %i)
-                #print('Shape', output.get_shape())
+                print('After dense layer_%i' %i)
+                print('Shape', output.get_shape())
   
             logits = self.d_final_layer.forward(output, 
                                                 reuse,
@@ -603,13 +603,20 @@ class cycleGenerator(object):
         dims_H =[dim_H]
         dims_W =[dim_W]
 
+        for key in d_sizes:
+
+            if 'block' in key:
+                print('Residual Convolutional Network architecture detected')
+            else:
+                print('Check network architecture')
+            break
 
         with tf.variable_scope('generator_'+g_name) as scope:
                 
                 #dense layers
                 
                 count = 0
-                    
+
                 #checking generator architecture
                 g_steps=0
                 for key in g_sizes:
@@ -617,7 +624,6 @@ class cycleGenerator(object):
 
                 g_convs = 0
                 g_deconvs = 0
-
                 g_conv_blocks = 0
                 #g_deconv_blocks = 0
 
@@ -776,8 +782,8 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                #print('After deconvolutional block %i' %i)
-                #print('shape: ', output.get_shape())
+                print('After deconvolutional block %i' %i)
+                print('shape: ', output.get_shape())
         
 
             print('Deconvoluted output shape', output.get_shape())
