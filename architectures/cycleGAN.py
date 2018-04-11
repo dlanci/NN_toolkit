@@ -460,8 +460,8 @@ class cycleGAN(object):
 
                     plt.subplot(1,2,1)
                     X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
-                    print(X_batch_A.shape)
-                    print(X_batch_A)
+                    print(self.std_A.shape)
+                    print(self.std_A)
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
 
