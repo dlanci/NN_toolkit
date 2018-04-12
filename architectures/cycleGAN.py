@@ -397,16 +397,16 @@ class cycleGAN(object):
                 #train the generator averaging two costs if the
                 #discriminator learns too fast
 
-                _, g_cost_A1 =  self.session.run(
+                _, g_cost_A =  self.session.run(
                     (self.g_train_op_A, self.g_cost_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
                 
-                _, g_cost_A2, fake_images_B_temp =  self.session.run(
-                    (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
-                g_cost_A = (g_cost_A1+g_cost_A2)/2
+                # _, g_cost_A2, fake_images_B_temp =  self.session.run(
+                #     (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
+                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
+                # )
+                # g_cost_A = (g_cost_A1+g_cost_A2)/2
                 g_costs_A.append(g_cost_A) # just use the avg    
 
                 
@@ -421,17 +421,17 @@ class cycleGAN(object):
 
                 #optimize generator_B
 
-                _, g_cost_B1 =  self.session.run(
+                _, g_cost_B =  self.session.run(
                     (self.g_train_op_B, self.g_cost_B),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
                 
-                _, g_cost_B2, fake_images_A_temp =  self.session.run(
-                    (self.g_train_op_B, self.g_cost_B, self.sample_images_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
+                # _, g_cost_B2, fake_images_A_temp =  self.session.run(
+                #     (self.g_train_op_B, self.g_cost_B, self.sample_images_A),
+                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
+                # )
 
-                g_cost_B = (g_cost_B1+g_cost_B2)/2
+                # g_cost_B = (g_cost_B1+g_cost_B2)/2
                 g_costs_B.append(g_cost_B) # just use the avg   
 
             
