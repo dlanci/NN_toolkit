@@ -723,7 +723,7 @@ class cycleGenerator(object):
                 for key in g_sizes:
 
                     if 'conv_layer' in key:
-                        if not 'deconv' in key
+                        if not 'deconv' in key:
 
                             name = 'g_conv_layer_{0}'.format(conv_layer_n)
 
@@ -789,8 +789,6 @@ class cycleGenerator(object):
             
             i=0
 
-            print(self.g_blocks)
-
 
             for block in self.g_blocks:
                 i+=1
@@ -798,8 +796,6 @@ class cycleGenerator(object):
                                         reuse,
                                         is_training)
                 print('After block step%i' %i)
-                if i == 11 or i ==13 or i==15:
-                    print(block.name)
                 print('shape: ', output.get_shape())
         
 
