@@ -147,7 +147,7 @@ class cycleGAN(object):
         #first cycle (A to B)
         with tf.variable_scope('discriminator_A') as scope:
             
-            logits_A = D_A.d_forward(self.input_A)
+            self.logits_A = D_A.d_forward(self.input_A)
 
         with tf.variable_scope('generator_A_to_B') as scope:
 
@@ -156,7 +156,7 @@ class cycleGAN(object):
         #second cycle (B to A)
         with tf.variable_scope('discriminator_B') as scope:
             
-            logits_B = D_B.d_forward(self.input_B)
+            self.logits_B = D_B.d_forward(self.input_B)
 
         with tf.variable_scope('generator_B_to_A') as scope:
 
@@ -165,21 +165,21 @@ class cycleGAN(object):
 
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
-            sample_logits_A = D_A.d_forward(self.sample_images_A, reuse=True)
+            self.sample_logits_A = D_A.d_forward(self.sample_images_A, reuse=True)
 
         with tf.variable_scope('discriminator_B') as scope:
             scope.reuse_variables()
-            sample_logits_B = D_B.d_forward(self.sample_images_B, reuse=True)
+            self.sample_logits_B = D_B.d_forward(self.sample_images_B, reuse=True)
 
 
         with tf.variable_scope('generator_A_to_B') as scope:
             scope.reuse_variables()
-            cycl_B = G_A_to_B.g_forward(self.sample_images_A, reuse=True)
+            self.cycl_B = G_A_to_B.g_forward(self.sample_images_A, reuse=True)
 
 
         with tf.variable_scope('generator_B_to_A') as scope:
             scope.reuse_variables()
-            cycl_A = G_B_to_A.g_forward(self.sample_images_B, reuse=True)
+            self.cycl_A = G_B_to_A.g_forward(self.sample_images_B, reuse=True)
 
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
@@ -287,8 +287,8 @@ class cycleGAN(object):
         g_disc_cost_B = tf.reduce_mean(tf.squared_difference(self.sample_logits_B,1))
 
         #cycle cost is low if cyclic images are similar to input images (in both sets)
-        g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
-        g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
+        g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-self.cycl_A)) 
+        g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-self.cycl_B))
 
         g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
         self.g_cost_A = g_disc_cost_A + 10*g_cycle_cost
