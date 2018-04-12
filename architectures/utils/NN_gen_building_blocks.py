@@ -83,15 +83,15 @@ class Discriminator(object):
 
     def d_forward(self, X, reuse = None, is_training=True):
             print('Discriminator_'+self.d_name)
-            print('Convolution')
+            # print('Convolution')
 
             output = X
             print('Input for convolution shape ', X.get_shape())
             i=0
             for layer in self.d_conv_layers:
                 i+=1
-                print('Convolution_layer_%i' %i)
-                print('Input shape', output.get_shape())
+                # print('Convolution_layer_%i' %i)
+                # print('Input shape', output.get_shape())
                 output = layer.forward(output,
                                      reuse, 
                                      is_training)
@@ -107,8 +107,8 @@ class Discriminator(object):
                                        reuse,
                                        is_training)
                 i+=1
-                print('After dense layer_%i' %i)
-                print('Shape', output.get_shape())
+                # print('After dense layer_%i' %i)
+                # print('Shape', output.get_shape())
   
             logits = self.d_final_layer.forward(output, 
                                                 reuse,
@@ -759,8 +759,8 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                print('After block step%i' %i)
-                print('shape: ', output.get_shape())
+                #print('After block step%i' %i)
+                #print('shape: ', output.get_shape())
         
 
             print('Generator output shape', output.get_shape())
