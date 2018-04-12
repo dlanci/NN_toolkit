@@ -692,7 +692,7 @@ class cycleGenerator(object):
                         blocks_output_sizes[g_conv_blocks-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
                         g_conv_blocks -=1
 
-
+                print(g_convs, g_deconvs, g_conv_blocks)
                 
                 dims_H = list(reversed(dims_H))
                 dims_W = list(reversed(dims_W))
@@ -713,6 +713,8 @@ class cycleGenerator(object):
                 conv_layer_n=0 #keep count of conv layer number
                 deconv_layer_n=0 #keep count of deconv layer number
                 i=0 # keep count of the built blocks
+
+
                 for key in g_sizes:
 
                     if 'conv_layer' in key:
