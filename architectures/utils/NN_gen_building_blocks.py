@@ -794,6 +794,8 @@ class cycleGenerator(object):
                                         reuse,
                                         is_training)
                 print('After block step%i' %i)
+                if i == 11 or i ==13 or i==15:
+                    print(block)
                 print('shape: ', output.get_shape())
         
 
