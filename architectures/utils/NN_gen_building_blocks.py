@@ -703,7 +703,6 @@ class cycleGenerator(object):
 
                 # print(conv_layers_output_sizes)
                 # print(blocks_output_sizes)
-                print(deconv_layers_output_sizes)
 
                 #saving for later
                 self.g_dims_H = dims_H
@@ -788,6 +787,10 @@ class cycleGenerator(object):
             print('Input for generator shape', X.get_shape())
             
             i=0
+
+            print(g_blocks)
+
+
             for block in self.g_blocks:
                 i+=1
                 output = block.forward(output,
