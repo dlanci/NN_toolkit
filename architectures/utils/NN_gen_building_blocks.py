@@ -345,8 +345,8 @@ class Generator(object):
         for layer in self.g_dense_layers:
             print(i)
             output = layer.forward(output, reuse, is_training)
-            # print('After dense layer %i' %i)
-            # print('shape: ', output.get_shape())
+            print('After dense layer %i' %i)
+            print('shape: ', output.get_shape())
             i+=1
 
         output = self.g_final_layer.forward(output, reuse, is_training)
@@ -378,8 +378,8 @@ class Generator(object):
         for layer in self.g_conv_layers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            # print('After deconvolutional layer %i' %i)
-            # print('shape: ', output.get_shape())
+            print('After deconvolutional layer %i' %i)
+            print('shape: ', output.get_shape())
 
 
         print('Deconvoluted output shape', output.get_shape())
