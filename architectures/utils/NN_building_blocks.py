@@ -25,7 +25,7 @@ def evaluation(Y_pred, Y):
     """
     
     correct = tf.equal(tf.argmax(Y_pred, 1), tf.argmax(Y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+    accuracy = tf.reduce_mean(tf.cast(correct, tf.float16))
     
     return accuracy
 

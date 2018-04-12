@@ -75,8 +75,8 @@ class cycleGAN(object):
 
         Keyword arguments:
 
-            - lr = LEARNING_RATE (float32)
-            - beta1 = ema parameter for adam opt (float32)
+            - lr = LEARNING_RATE (float16)
+            - beta1 = ema parameter for adam opt (float16)
             - batch_size (int)
             - save_sample = after how many batches iterations to save a sample (int)
             - path = relative path for saving samples
@@ -96,21 +96,21 @@ class cycleGAN(object):
         #input data
         
         self.input_A = tf.placeholder(
-            tf.float32,
+            tf.float16,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_A',
         )
 
         self.input_B = tf.placeholder(
-            tf.float32,
+            tf.float16,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_B',
         )
         
         # self.Z = tf.placeholder(
-        #     tf.float32,
+        #     tf.float16,
         #     shape=(None, 
         #            self.latent_dims),
         #     name='Z'    
@@ -168,7 +168,7 @@ class cycleGAN(object):
 
 
         self.input_test_A = tf.placeholder(
-            tf.float32,
+            tf.float16,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_A',
@@ -181,7 +181,7 @@ class cycleGAN(object):
             )
 
         self.input_test_B = tf.placeholder(
-            tf.float32,
+            tf.float16,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_B',
@@ -256,16 +256,16 @@ class cycleGAN(object):
         #Measure accuracy of the discriminators
         #discriminator A
 
-        real_predictions_A = tf.cast(logits_A>0,tf.float32)
-        fake_predictions_A = tf.cast(sample_logits_A<0,tf.float32)
+        real_predictions_A = tf.cast(logits_A>0,tf.float16)
+        fake_predictions_A = tf.cast(sample_logits_A<0,tf.float16)
         
         num_predictions=2.0*batch_size
         num_correct_A = tf.reduce_sum(real_predictions_A)+tf.reduce_sum(fake_predictions_A)
 
         self.d_accuracy_A = num_correct_A/num_predictions
 
-        real_predictions_B = tf.cast(logits_B>0,tf.float32)
-        fake_predictions_B = tf.cast(sample_logits_B<0,tf.float32)
+        real_predictions_B = tf.cast(logits_B>0,tf.float16)
+        fake_predictions_B = tf.cast(sample_logits_B<0,tf.float16)
         
         num_predictions=2.0*batch_size
         num_correct_B = tf.reduce_sum(real_predictions_B)+tf.reduce_sum(fake_predictions_B)
