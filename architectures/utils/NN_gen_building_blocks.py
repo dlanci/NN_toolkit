@@ -788,7 +788,7 @@ class cycleGenerator(object):
             
             i=0
 
-            print(g_blocks)
+            print(self.g_blocks)
 
 
             for block in self.g_blocks:
