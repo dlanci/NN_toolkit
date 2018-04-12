@@ -25,7 +25,7 @@ SAVE_SAMPLE_PERIOD = None
 PATH = None
 SEED = None
 rnd_seed=1
-pool_size=50
+
 
 class cycleGAN(object):
     
@@ -108,34 +108,19 @@ class cycleGAN(object):
                    n_H, n_W, n_C),
             name='X_B',
         )
-        #fake pools
-
-        self.fake_pool_A = tf.placeholder(
-            tf.float32,
-            shape=(None, 
-                   n_H, n_W, n_C),
-            name='fake_pool_A',
-        )
-
-        self.fake_pool_B = tf.placeholder(
-            tf.float32,
-            shape=(None, 
-                   n_H, n_W, n_C),
-            name='fake_pool_B',
-        )
         
-        self.num_fake_inputs = 0
-
+        # self.Z = tf.placeholder(
+        #     tf.float32,
+        #     shape=(None, 
+        #            self.latent_dims),
+        #     name='Z'    
+        # )
 
         self.batch_sz = tf.placeholder(
             tf.int32, 
             shape=(), 
             name='batch_sz'
         )
-
-
-        self.fake_images_A = np.zeros((pool_size,1,self.n_H, self.n_W, self.n_C))
-        self.fake_images_B = np.zeros((pool_size,1,self.n_H, self.n_W, self.n_C))
 
         D_A = Discriminator(self.input_A, d_sizes_A, 'A')
         D_B = Discriminator(self.input_B, d_sizes_B, 'B')
@@ -147,47 +132,39 @@ class cycleGAN(object):
         #first cycle (A to B)
         with tf.variable_scope('discriminator_A') as scope:
             
-            self.logits_A = D_A.d_forward(self.input_A)
+            logits_A = D_A.d_forward(self.input_A)
 
         with tf.variable_scope('generator_A_to_B') as scope:
 
-            self.sample_images_B = G_A_to_B.g_forward(self.input_A)
+            sample_images_B = G_A_to_B.g_forward(self.input_A)
 
         #second cycle (B to A)
         with tf.variable_scope('discriminator_B') as scope:
             
-            self.logits_B = D_B.d_forward(self.input_B)
+            logits_B = D_B.d_forward(self.input_B)
 
         with tf.variable_scope('generator_B_to_A') as scope:
 
-            self.sample_images_A = G_B_to_A.g_forward(self.input_B)
+            sample_images_A = G_B_to_A.g_forward(self.input_B)
 
 
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
-            self.sample_logits_A = D_A.d_forward(self.sample_images_A, reuse=True)
+            sample_logits_A = D_A.d_forward(sample_images_A, reuse=True)
 
         with tf.variable_scope('discriminator_B') as scope:
             scope.reuse_variables()
-            self.sample_logits_B = D_B.d_forward(self.sample_images_B, reuse=True)
+            sample_logits_B = D_B.d_forward(sample_images_B, reuse=True)
 
 
         with tf.variable_scope('generator_A_to_B') as scope:
             scope.reuse_variables()
-            self.cycl_B = G_A_to_B.g_forward(self.sample_images_A, reuse=True)
+            cycl_B = G_A_to_B.g_forward(sample_images_A, reuse=True)
 
 
         with tf.variable_scope('generator_B_to_A') as scope:
             scope.reuse_variables()
-            self.cycl_A = G_B_to_A.g_forward(self.sample_images_B, reuse=True)
-
-        with tf.variable_scope('discriminator_A') as scope:
-            scope.reuse_variables()
-            self.sample_logits_A_pool = D_A.d_forward(self.fake_pool_A, reuse=True)
-
-        with tf.variable_scope('discriminator_B') as scope:
-            scope.reuse_variables()
-            self.sample_logits_B_pool = D_B.d_forward(self.fake_pool_B, reuse=True)
+            cycl_A = G_B_to_A.g_forward(sample_images_B, reuse=True)
 
 
         self.input_test_A = tf.placeholder(
@@ -220,43 +197,29 @@ class cycleGAN(object):
         
         #Discriminators cost
         #cost is low if real images are predicted as real (1) 
-        # d_cost_real_A = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=logits_A,
-        #     labels=tf.ones_like(logits_A)
-        # )
-        # #cost is low if fake generated images are predicted as fake (0)
-        # d_cost_fake_A = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=sample_logits_A,
-        #     labels=tf.zeros_like(sample_logits_A)
-        # )
-
-        #from hardik bansal implementation
-
-        d_cost_real_A = tf.squared_difference(self.input_A,1)/2
-        d_cost_fake_A = tf.square(self.sample_logits_A_pool)/2
-            
+        d_cost_real_A = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logits_A,
+            labels=tf.ones_like(logits_A)
+        )
+        #cost is low if fake generated images are predicted as fake (0)
+        d_cost_fake_A = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=sample_logits_A,
+            labels=tf.zeros_like(sample_logits_A)
+        )
         
         #discriminator_A cost
         self.d_cost_A = tf.reduce_mean(d_cost_real_A) + tf.reduce_mean(d_cost_fake_A)
         
+        #same for discriminator B
+        d_cost_real_B = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logits_B,
+            labels=tf.ones_like(logits_B)
+        )
         
-        # #same for discriminator B
-        # d_cost_real_B = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=logits_B,
-        #     labels=tf.ones_like(logits_B)
-        # )
-        
-        # d_cost_fake_B = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=sample_logits_B,
-        #     labels=tf.zeros_like(sample_logits_B)
-        # )
-
-        #from hardik bansal implementation
-
-        d_cost_real_B = tf.squared_difference(self.input_B,1)/2
-        d_cost_fake_B = tf.square(self.sample_logits_B_pool)/2
-            
-        
+        d_cost_fake_B = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=sample_logits_B,
+            labels=tf.zeros_like(sample_logits_B)
+        )
         #discriminator_B cost
         self.d_cost_B = tf.reduce_mean(d_cost_real_B) + tf.reduce_mean(d_cost_fake_B)
 
@@ -266,34 +229,30 @@ class cycleGAN(object):
         #Generator cost 
         #cost is low if logits from discriminator A on samples generated by G_B_to_A 
         #are predicted as true (1)
-        # g_cost_A = tf.reduce_mean(
-        #     tf.nn.sigmoid_cross_entropy_with_logits(
-        #         logits=sample_logits_A,
-        #         labels=tf.ones_like(sample_logits_A)
-        #     )
-        # )
-        # #cost is low if logits from discriminator B on samples generated by G_A_to_B 
-        # #are predicted as true (1)
-        # g_cost_B = tf.reduce_mean(
-        #     tf.nn.sigmoid_cross_entropy_with_logits(
-        #         logits=sample_logits_B,
-        #         labels=tf.ones_like(sample_logits_B)
-        #     )
-        # )
-
-        #hardik bansal implementation
-
-        g_disc_cost_A = tf.reduce_mean(tf.squared_difference(self.sample_logits_A,1))
-        g_disc_cost_B = tf.reduce_mean(tf.squared_difference(self.sample_logits_B,1))
-
+        g_cost_A = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=sample_logits_A,
+                labels=tf.ones_like(sample_logits_A)
+            )
+        )
+        #cost is low if logits from discriminator B on samples generated by G_A_to_B 
+        #are predicted as true (1)
+        g_cost_B = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=sample_logits_B,
+                labels=tf.ones_like(sample_logits_B)
+            )
+        )
         #cycle cost is low if cyclic images are similar to input images (in both sets)
-        g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-self.cycl_A)) 
-        g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-self.cycl_B))
+        g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
+        g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
 
         g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
-        self.g_cost_A = g_disc_cost_A + 10*g_cycle_cost
-        self.g_cost_B = g_disc_cost_B + 10*g_cycle_cost
+        self.g_cost_A = g_cost_A + 10*g_cycle_cost
+        self.g_cost_B = g_cost_B + 10*g_cycle_cost
 
+
+        
         #Measure accuracy of the discriminators
         #discriminator A
 
@@ -425,43 +384,51 @@ class cycleGAN(object):
                 
                 #optimize generator_A
 
-                _, g_cost_A, fake_B_temp =  self.session.run(
-                    (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
+                _, g_cost_A =  self.session.run(
+                    (self.g_train_op_A, self.g_cost_A),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
+                
+                # _, g_cost_A2, fake_images_B_temp =  self.session.run(
+                #     (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
+                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
+                # )
+                # g_cost_A = (g_cost_A1+g_cost_A2)/2
+                g_costs_A.append(g_cost_A) # just use the avg    
 
-                g_costs_A.append(g_cost_A)
-                fake_B_temp1 = self.fake_image_pool(self.num_fake_inputs, fake_B_temp, self.fake_images_B)
                 #optimize discriminator_B
 
                 _, d_cost_B, d_acc_B = self.session.run(
                     (self.d_train_op_B, self.d_cost_B, self.d_accuracy_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.fake_pool_B:fake_B_temp1},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
                 d_costs_B.append(d_cost_B)
 
                 #optimize generator_B
 
-                _, g_cost_B, fake_A_temp =  self.session.run(
-                    (self.g_train_op_B, self.g_cost_B, self.sampl),
+                _, g_cost_B =  self.session.run(
+                    (self.g_train_op_B, self.g_cost_B),
                     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
                 
+                # _, g_cost_B2, fake_images_A_temp =  self.session.run(
+                #     (self.g_train_op_B, self.g_cost_B, self.sample_images_A),
+                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
+                # )
 
+                # g_cost_B = (g_cost_B1+g_cost_B2)/2
                 g_costs_B.append(g_cost_B) 
-                fake_A_temp1 = self.fake_image_pool(self.num_fake_inputs, fake_A_temp, self.fake_images_A)
 
 
                 #optimize Discriminator_A 
                 _, d_cost_A, d_acc_A = self.session.run(
                     (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.fake_pool_A:fake_A_temp1},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
                 )
 
                 d_costs_A.append(d_cost_A)
 
-                self.num_fake_inputs+=1
 
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
