@@ -751,7 +751,8 @@ class cycleGenerator(object):
                         name = 'g_deconv_layer_{0}'.format(deconv_layer_n)
 
                         mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
-
+                        print(deconv_layer_n)
+                        print(deconv_layers_output_sizes[deconv_layer_n])
                         g_deconv_layer = DeconvLayer(
                             name, mi, mo, deconv_layers_output_sizes[deconv_layer_n],
                             filter_sz, stride, apply_batch_norm, keep_prob,
@@ -784,8 +785,8 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                print('After block step%i' %i)
-                print('shape: ', output.get_shape())
+                #print('After block step%i' %i)
+                #print('shape: ', output.get_shape())
         
 
             print('Generator output shape', output.get_shape())
