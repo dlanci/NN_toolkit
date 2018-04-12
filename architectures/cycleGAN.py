@@ -75,8 +75,8 @@ class cycleGAN(object):
 
         Keyword arguments:
 
-            - lr = LEARNING_RATE (float16)
-            - beta1 = ema parameter for adam opt (float16)
+            - lr = LEARNING_RATE (float32)
+            - beta1 = ema parameter for adam opt (float32)
             - batch_size (int)
             - save_sample = after how many batches iterations to save a sample (int)
             - path = relative path for saving samples
@@ -96,21 +96,21 @@ class cycleGAN(object):
         #input data
         
         self.input_A = tf.placeholder(
-            tf.float16,
+            tf.float32,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_A',
         )
 
         self.input_B = tf.placeholder(
-            tf.float16,
+            tf.float32,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_B',
         )
         
         # self.Z = tf.placeholder(
-        #     tf.float16,
+        #     tf.float32,
         #     shape=(None, 
         #            self.latent_dims),
         #     name='Z'    
@@ -168,7 +168,7 @@ class cycleGAN(object):
 
 
         self.input_test_A = tf.placeholder(
-            tf.float16,
+            tf.float32,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_A',
@@ -181,7 +181,7 @@ class cycleGAN(object):
             )
 
         self.input_test_B = tf.placeholder(
-            tf.float16,
+            tf.float32,
             shape=(None, 
                    n_H, n_W, n_C),
             name='X_B',
@@ -256,16 +256,16 @@ class cycleGAN(object):
         #Measure accuracy of the discriminators
         #discriminator A
 
-        real_predictions_A = tf.cast(logits_A>0,tf.float16)
-        fake_predictions_A = tf.cast(sample_logits_A<0,tf.float16)
+        real_predictions_A = tf.cast(logits_A>0,tf.float32)
+        fake_predictions_A = tf.cast(sample_logits_A<0,tf.float32)
         
         num_predictions=2.0*batch_size
         num_correct_A = tf.reduce_sum(real_predictions_A)+tf.reduce_sum(fake_predictions_A)
 
         self.d_accuracy_A = num_correct_A/num_predictions
 
-        real_predictions_B = tf.cast(logits_B>0,tf.float16)
-        fake_predictions_B = tf.cast(sample_logits_B<0,tf.float16)
+        real_predictions_B = tf.cast(logits_B>0,tf.float32)
+        fake_predictions_B = tf.cast(sample_logits_B<0,tf.float32)
         
         num_predictions=2.0*batch_size
         num_correct_B = tf.reduce_sum(real_predictions_B)+tf.reduce_sum(fake_predictions_B)
@@ -456,26 +456,26 @@ class cycleGAN(object):
 
 
                     plt.subplot(2,2,1)
-                    X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int16)
+                    X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,2)
-                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int16)
-                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int16))
+                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int32)
+                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,3)
-                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int16)
+                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int32)
                     plt.imshow(X_batch_B.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,4)
-                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int16)
-                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int16))
+                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int32)
+                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
