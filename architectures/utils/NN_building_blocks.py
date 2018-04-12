@@ -158,18 +158,21 @@ class DenseLayer(object):
                     "W_%s" %name,
                     shape=(mi,mo),
                     initializer=w_init,
+                    dtype=tf.float16
                 )
                 
                 self.bi = tf.get_variable(
                     "bi_%s" %name,
                     shape=(mo,),
                     initializer=tf.zeros_initializer(),
+                    dtype=tf.float16
                 )
 
                 self.bo = tf.get_variable(
                     "bo_%s" %name,
                     shape=(mi,),
                     initializer=tf.zeros_initializer(),
+                    dtype=tf.float16
                 )
                 
                 self.f=f
@@ -372,12 +375,14 @@ class ConvLayer(object):
                 "W_%s" %name,
                 shape=(filter_sz,filter_sz, mi, mo),
                 initializer=w_init,
+                dtype=tf.float16,
             )
             
             self.b = tf.get_variable(
                 "b_%s" %name,
                 shape = (mo,),
                 initializer=tf.zeros_initializer(),
+                dtype=tf.float16
             )
             
             self.name = name
@@ -485,17 +490,20 @@ class DeconvLayer(object):
                     "W_%s" %name,
                     shape=(filter_sz, filter_sz, mo, mo),
                     initializer=w_init,
+                    dtype=tf.float16,
                 )
                 self.W_id = tf.get_variable(
                     'W_%s_id' %name,
                     shape=(1,1,mi, mo),
                     initializer=w_init,
+                    dtype=tf.float16,
                 )
 
                 self.b = tf.get_variable(
                     "b_%s" %name,
                     shape=(mo,),
                     initializer=tf.zeros_initializer(),
+                    dtype=tf.float16,
                 )
 
                 self.f = f
