@@ -151,7 +151,7 @@ class cycleGAN(object):
 
         with tf.variable_scope('generator_A_to_B') as scope:
 
-            sample_images_B = G_A_to_B.g_forward(self.input_A)
+            self.sample_images_B = G_A_to_B.g_forward(self.input_A)
 
         #second cycle (B to A)
         with tf.variable_scope('discriminator_B') as scope:
@@ -165,11 +165,11 @@ class cycleGAN(object):
 
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
-            sample_logits_A = D_A.d_forward(sample_images_A, reuse=True)
+            sample_logits_A = D_A.d_forward(self.sample_images_A, reuse=True)
 
         with tf.variable_scope('discriminator_B') as scope:
             scope.reuse_variables()
-            sample_logits_B = D_B.d_forward(sample_images_B, reuse=True)
+            sample_logits_B = D_B.d_forward(self.sample_images_B, reuse=True)
 
 
         with tf.variable_scope('generator_A_to_B') as scope:
