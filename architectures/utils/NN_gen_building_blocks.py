@@ -723,21 +723,22 @@ class cycleGenerator(object):
                 for key in g_sizes:
 
                     if 'conv_layer' in key:
+                        if not 'deconv' in key
 
-                        name = 'g_conv_layer_{0}'.format(conv_layer_n)
+                            name = 'g_conv_layer_{0}'.format(conv_layer_n)
 
-                        mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
+                            mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
 
-                        g_conv_layer = ConvLayer(
-                            name, mi, mo, 
-                            filter_sz, stride, apply_batch_norm, keep_prob,
-                            act_f, w_init
-                            )
-                        self.g_blocks.append(g_conv_layer)
-                        mi = mo
-                        conv_layer_n +=1
-                        count +=1
-                        i+=1
+                            g_conv_layer = ConvLayer(
+                                name, mi, mo, 
+                                filter_sz, stride, apply_batch_norm, keep_prob,
+                                act_f, w_init
+                                )
+                            self.g_blocks.append(g_conv_layer)
+                            mi = mo
+                            conv_layer_n +=1
+                            count +=1
+                            i+=1
 
                     
                     if 'block' and 'shortcut' in key:
