@@ -456,26 +456,26 @@ class cycleGAN(object):
 
 
                     plt.subplot(2,2,1)
-                    X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
+                    X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int16)
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,2)
-                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int32)
-                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
+                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int16)
+                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int16))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,3)
-                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int32)
+                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int16)
                     plt.imshow(X_batch_B.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,4)
-                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int32)
-                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
+                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int16)
+                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int16))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
