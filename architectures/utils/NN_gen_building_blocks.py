@@ -27,8 +27,6 @@ class Discriminator(object):
         for key in d_sizes:
             if not 'block' in key:
                 print('Convolutional Network architecture detected')
-            else:
-                print('Check network architecture')
             break
 
         with tf.variable_scope('discriminator_'+d_name) as scope:
@@ -607,8 +605,6 @@ class cycleGenerator(object):
 
             if 'block' in key:
                 print('Residual Convolutional Network architecture detected')
-            else:
-                print('Check network architecture')
             break
 
         with tf.variable_scope('generator_'+g_name) as scope:
@@ -655,32 +651,6 @@ class cycleGenerator(object):
 
                 for key, item in reversed(list(g_sizes.items())):
 
-                    # if 'conv_layer' in key:
-                    #     if not 'deconv' in key:
-                    #         _, _, stride, _, _, _, _, = g_sizes[key][0]
-                    #         conv_layers_output_sizes[g_convs-1] = [dim_H, dim_W]
-
-                    #         dim_H = int(np.ceil(float(dim_H)/stride))
-                    #         dim_W = int(np.ceil(float(dim_W)/stride))
-                    #         dims_H.append(dim_H)
-                    #         dims_W.append(dim_W)
-
-                    #         g_convs -= 1
-
-
-                      
-                    # if 'convblock_layer' in key:
-                        
-                    #     for _ ,_ , stride, _, _, _, _, in g_sizes[key]:
-                        
-                    #         dim_H = int(np.ceil(float(dim_H)/stride))
-                    #         dim_W = int(np.ceil(float(dim_W)/stride))
-                    #         dims_H.append(dim_H)
-                    #         dims_W.append(dim_W)
-                        
-                    #     blocks_output_sizes[g_conv_blocks-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
-                    #     g_conv_blocks -=1
-
                     if 'deconv_layer' in key:
                         
                         
@@ -694,15 +664,11 @@ class cycleGenerator(object):
                         
                         g_deconvs -= 1
 
-                #assert g_convs  == 0
-                #assert g_conv_blocks == 0
                 assert g_deconvs  == 0
                 
                 dims_H = list(reversed(dims_H))
                 dims_W = list(reversed(dims_W))
 
-                # print(conv_layers_output_sizes)
-                # print(blocks_output_sizes)
 
                 #saving for later
                 self.g_dims_H = dims_H
@@ -759,8 +725,6 @@ class cycleGenerator(object):
                         name = 'g_deconv_layer_{0}'.format(deconv_layer_n)
 
                         mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
-                        print(deconv_layer_n)
-                        print(deconv_layers_output_sizes[deconv_layer_n])
                         g_deconv_layer = DeconvLayer(
                             name, mi, mo, deconv_layers_output_sizes[deconv_layer_n],
                             filter_sz, stride, apply_batch_norm, keep_prob,
