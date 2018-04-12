@@ -697,6 +697,8 @@ class cycleGenerator(object):
                 dims_H = list(reversed(dims_H))
                 dims_W = list(reversed(dims_W))
 
+                print(dims_H,dims_W)
+
                 #saving for later
                 self.g_dims_H = dims_H
                 self.g_dims_W = dims_W
