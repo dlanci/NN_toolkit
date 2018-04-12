@@ -92,25 +92,25 @@ class Discriminator(object):
             i=0
             for layer in self.d_conv_layers:
                 i+=1
-                #print('Convolution_layer_%i' %i)
-                #print('Input shape', output.get_shape())
+                print('Convolution_layer_%i' %i)
+                print('Input shape', output.get_shape())
                 output = layer.forward(output,
                                      reuse, 
                                      is_training)
-                #print('After convolution shape', output.get_shape())
+                print('After convolution shape', output.get_shape())
             
             output = tf.contrib.layers.flatten(output)
-            #print('After flatten shape', output.get_shape())
+            print('After flatten shape', output.get_shape())
             i=0
             for layer in self.d_dense_layers:
-                #print('Dense weights %i' %i)
-                #print(layer.W.get_shape())
+                print('Dense weights %i' %i)
+                print(layer.W.get_shape())
                 output = layer.forward(output,
                                        reuse,
                                        is_training)
                 i+=1
-                #print('After dense layer_%i' %i)
-                #print('Shape', output.get_shape())
+                print('After dense layer_%i' %i)
+                print('Shape', output.get_shape())
   
             logits = self.d_final_layer.forward(output, 
                                                 reuse,
@@ -782,8 +782,8 @@ class cycleGenerator(object):
                 output = block.forward(output,
                                         reuse,
                                         is_training)
-                #print('After block step %i' %i)
-                #print('shape: ', output.get_shape())
+                print('After block step%i' %i)
+                print('shape: ', output.get_shape())
         
 
             print('Generator output shape', output.get_shape())

@@ -167,7 +167,6 @@ class cycleGAN(object):
             cycl_A = G_B_to_A.g_forward(sample_images_B, reuse=True)
 
 
-
         self.input_test_A = tf.placeholder(
             tf.float32,
             shape=(None, 
@@ -440,8 +439,8 @@ class cycleGAN(object):
                 if total_iters % self.save_sample ==0:
                     print("At iter: %d  -  dt: %s - d_acc_A: %.2f" % (total_iters, datetime.now() - t0, d_acc_A))
                     print("At iter: %d  -  dt: %s - d_acc_B: %.2f" % (total_iters, datetime.now() - t0, d_acc_B))
-                    print("Discrimator_A cost {0}, Generator_A_to_B cost {1}".format(d_cost_A, g_cost_A))
-                    print("Discrimator_B cost {0}, Generator_B_to_A cost {1}".format(d_cost_B, g_cost_B))
+                    print("Discrimator_A cost {0:.4g}, Generator_A_to_B cost {1:.4g}".format(d_cost_A, g_cost_A))
+                    print("Discrimator_B cost {0:.4g}, Generator_B_to_A cost {1:.4g}".format(d_cost_B, g_cost_B))
                     print('Saving a sample...')
                     
                     
