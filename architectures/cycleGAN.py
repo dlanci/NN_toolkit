@@ -390,9 +390,9 @@ class cycleGAN(object):
             print('Epoch:', epoch)
 
             if(epoch < 100) :
-                    curr_lr = 0.0002
-                else:
-                    curr_lr = 0.0002 - 0.0002*(epoch-100)/100
+                curr_lr = 0.0002
+            else:
+                curr_lr = 0.0002 - 0.0002*(epoch-100)/100
             
             batches_A = unsupervised_random_mini_batches(X_A, self.batch_size, seed)
             batches_B = unsupervised_random_mini_batches(X_B, self.batch_size, seed)
@@ -476,24 +476,41 @@ class cycleGAN(object):
 
                     plt.subplot(2,2,1)
                     X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
+
+                    X_batch_A[np.where(X_batch_A<0)]=0
+                    X_batch_A[np.where(X_batch_A>255)]=255
+
                     plt.imshow(X_batch_A.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,2)
                     sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int32)
+
+                    sample_B[np.where(sample_B<0)]=0
+                    sample_B[np.where(sample_B>255)]=255
+
                     plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,3)
                     X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int32)
+
+                    X_batch_B[np.where(X_batch_B<0)]=0
+                    X_batch_B[np.where(X_batch_B>255)]=255
+
+
                     plt.imshow(X_batch_B.astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,4)
                     sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int32)
+
+                    sample_A[np.where(sample_A<0)]=0
+                    sample_A[np.where(sample_A>255)]=255
+
                     plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
