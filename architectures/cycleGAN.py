@@ -121,6 +121,11 @@ class cycleGAN(object):
             shape=(), 
             name='batch_sz'
         )
+        self.lr = tf.placeholder(
+            tf.float32, 
+            shape=(), 
+            name='lr'
+        )
 
         D_A = Discriminator(self.input_A, d_sizes_A, 'A')
         D_B = Discriminator(self.input_B, d_sizes_B, 'B')
@@ -297,7 +302,7 @@ class cycleGAN(object):
         
 
         self.d_train_op_A = tf.train.AdamOptimizer(
-            learning_rate=self.curr_lr,
+            learning_rate=self.lr,
             beta1=beta1,
         ).minimize(
             self.d_cost_A,
@@ -305,7 +310,7 @@ class cycleGAN(object):
         )
 
         self.d_train_op_B = tf.train.AdamOptimizer(
-            learning_rate=self.curr_lr,
+            learning_rate=self.lr,
             beta1=beta1,
         ).minimize(
             self.d_cost_B,
@@ -313,7 +318,7 @@ class cycleGAN(object):
         )
         
         self.g_train_op_A = tf.train.AdamOptimizer(
-            learning_rate=self.curr_lr,
+            learning_rate=self.lr,
             beta1=beta1,
         ).minimize(
             self.g_cost_A,
@@ -321,7 +326,7 @@ class cycleGAN(object):
         )
 
         self.g_train_op_B = tf.train.AdamOptimizer(
-            learning_rate=self.curr_lr,
+            learning_rate=self.lr,
             beta1=beta1,
         ).minimize(
             self.g_cost_B,
