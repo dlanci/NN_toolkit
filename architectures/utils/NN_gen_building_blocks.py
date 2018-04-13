@@ -95,14 +95,14 @@ class Discriminator(object):
                 output = layer.forward(output,
                                      reuse, 
                                      is_training)
-                print('After convolution shape', output.get_shape())
+                #print('After convolution shape', output.get_shape())
             
             output = tf.contrib.layers.flatten(output)
-            print('After flatten shape', output.get_shape())
+            #print('After flatten shape', output.get_shape())
             i=0
             for layer in self.d_dense_layers:
-                print('Dense weights %i' %i)
-                print(layer.W.get_shape())
+                #print('Dense weights %i' %i)
+                #print(layer.W.get_shape())
                 output = layer.forward(output,
                                        reuse,
                                        is_training)
@@ -341,10 +341,9 @@ class Generator(object):
         print('Input for deconvolution shape', Z.get_shape())
         i=0
         for layer in self.g_dense_layers:
-            print(i)
             output = layer.forward(output, reuse, is_training)
-            print('After dense layer %i' %i)
-            print('shape: ', output.get_shape())
+            #print('After dense layer %i' %i)
+            #print('shape: ', output.get_shape())
             i+=1
 
         output = self.g_final_layer.forward(output, reuse, is_training)
@@ -376,8 +375,8 @@ class Generator(object):
         for layer in self.g_conv_layers:
             i+=1
             output = layer.forward(output, reuse, is_training)
-            print('After deconvolutional layer %i' %i)
-            print('shape: ', output.get_shape())
+            #print('After deconvolutional layer %i' %i)
+            #print('shape: ', output.get_shape())
 
 
         print('Deconvoluted output shape', output.get_shape())
