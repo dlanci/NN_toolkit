@@ -405,7 +405,7 @@ class cycleGAN(object):
 
                 _, g_cost_A =  self.session.run(
                     (self.g_train_op_A, self.g_cost_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr=curr_lr},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr:curr_lr},
                 )
                 
                 # _, g_cost_A2, fake_images_B_temp =  self.session.run(
@@ -419,7 +419,7 @@ class cycleGAN(object):
 
                 _, d_cost_B, d_acc_B = self.session.run(
                     (self.d_train_op_B, self.d_cost_B, self.d_accuracy_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr=curr_lr},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr:curr_lr},
                 )
 
                 d_costs_B.append(d_cost_B)
@@ -428,7 +428,7 @@ class cycleGAN(object):
 
                 _, g_cost_B =  self.session.run(
                     (self.g_train_op_B, self.g_cost_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr=curr_lr},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr:curr_lr},
                 )
                 
                 # _, g_cost_B2, fake_images_A_temp =  self.session.run(
@@ -443,7 +443,7 @@ class cycleGAN(object):
                 #optimize Discriminator_A 
                 _, d_cost_A, d_acc_A = self.session.run(
                     (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr=curr_lr},
+                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size, self.lr:curr_lr},
                 )
 
                 d_costs_A.append(d_cost_A)
