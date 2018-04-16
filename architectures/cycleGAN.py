@@ -11,7 +11,7 @@ from datetime import datetime
 from architectures.utils.NN_building_blocks import *
 from architectures.utils.NN_gen_building_blocks import *
 
-def lrelu(x, alpha=0.1):
+def lrelu(x, alpha=0.2):
     return tf.maximum(alpha*x,x)
 
 # some dummy constants
