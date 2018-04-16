@@ -495,7 +495,7 @@ class cycleGAN(object):
                     sample_B[np.where(sample_B<0)]=0
                     sample_B[np.where(sample_B>255)]=255
 
-                    plt.imshow(255-sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
@@ -516,7 +516,7 @@ class cycleGAN(object):
                     sample_A[np.where(sample_A<0)]=0
                     sample_A[np.where(sample_A>255)]=255
 
-                    plt.imshow(255-sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
