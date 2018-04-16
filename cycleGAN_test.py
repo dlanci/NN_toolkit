@@ -5,6 +5,7 @@ import pickle
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from datetime import datetime
 
 from architectures.cycleGAN import *
@@ -26,8 +27,8 @@ SEED=1
 
 PATH = 'cycleGAN_test'
 
-ngf=32
-ndf=48
+ngf=16
+ndf=32
 f=7
 s=3
 
@@ -90,9 +91,9 @@ g_sizes ={
                                 #(ngf*4, 3, 1, True, 1, lrelu, trunc_normal)],
          'convblock_shortcut_layer_6':[(ngf*4, 1, 1, True, 1, trunc_normal)],
     
-         'deconv_layer_0':[(ngf*2, 3, 2, False, 1, lrelu, trunc_normal)],
-         'deconv_layer_1':[(ngf, 3, 2, True, 1, lrelu, trunc_normal)],
-         'deconv_layer_2':[(3, f, 2, False, 1, tf.nn.tanh, trunc_normal)],
+      #   'deconv_layer_0':[(ngf*2, 3, 2, False, 1, lrelu, trunc_normal)],
+         'deconv_layer_0':[(ngf, 3, 2, True, 1, lrelu, trunc_normal)],
+         'deconv_layer_1':[(3, f, 2, False, 1, tf.nn.tanh, trunc_normal)],
          
         
 }
@@ -100,11 +101,11 @@ g_sizes ={
 def Horse2Zebra():
     
     train_A = np.array(
-    [plt.imread("horse2zebra/trainA/"+filename) for filename in os.listdir("horse2zebra/trainA")]
+    [plt.imread("apple2orange/trainA/"+filename) for filename in os.listdir("apple2orange/trainA")]
     )
     
     train_B = np.array(
-    [plt.imread("horse2zebra/trainB/"+filename) for filename in os.listdir("horse2zebra/trainB")]
+    [plt.imread("apple2orange/trainB/"+filename) for filename in os.listdir("apple2orange/trainB")]
     )
     
     m = np.minimum(train_A.shape[0],train_B.shape[0])
