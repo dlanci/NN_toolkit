@@ -5,4 +5,7 @@ samples
 .DS_Store
 *horse2zebra
 *apple2orange
+._*
 
+*checkpoints
+architectures/._*
