@@ -269,7 +269,7 @@ class DCVAE(object):
             #final dense layer
             name = 'dec_layer_%s' %count
 
-            last_dec_layer = DenseLayer(name, mi, mo, not bn_after_project, keep_prob, act_f, w_init)
+            last_dec_layer = DenseLayer(name, mi, mo, not self.bn_after_project, keep_prob, act_f, w_init)
             self.d_dense_layers.append(last_dec_layer)
             
             #fractionally strided layers

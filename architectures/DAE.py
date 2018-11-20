@@ -186,7 +186,7 @@ class DAE(object):
             name = 'layer_{0}'.format(count)
 
             last_enc_layer = DenseLayer(name, mi, self.latent_dims, False, 1,
-                f=e_last_act_f, w_init=e_last_w_init
+                act_f=e_last_act_f, w_init=e_last_w_init
                 )
 
             self.e_layers.append(last_enc_layer)
@@ -225,7 +225,7 @@ class DAE(object):
             
             d_last_w_init= d_sizes['last_w_init']
             last_dec_layer = DenseLayer(name, mi, self.dim, False, 1,
-                f=lambda x:x, w_init=d_last_w_init
+                act_f=lambda x:x, w_init=d_last_w_init
                 )
 
             self.d_layers.append(last_dec_layer)

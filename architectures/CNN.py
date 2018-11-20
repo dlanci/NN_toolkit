@@ -96,10 +96,10 @@ class CNN(object):
 
         self.conv_sizes = sizes
         
-        self.X = tf.placeholder(
-            tf.float32,
-            shape=(None, n_H, n_W, n_C),
-            name = 'X_data'
+        self.batch_sz=tf.placeholder(
+            tf.int32,
+            shape=(),
+            name='batch_sz',
             )
 
         self.X_input = tf.placeholder(
@@ -108,27 +108,33 @@ class CNN(object):
             name = 'X_input'
             )
 
-        self.batch_sz=tf.placeholder(
-            tf.int32,
-            shape=(),
-            name='batch_sz',
+        self.X_test = tf.placeholder(
+            tf.float32,
+            shape=(None, n_H, n_W, n_C),
+            name = 'X_test'
             )
 
-        self.Y = tf.placeholder(
+        self.Y_input = tf.placeholder(
             tf.float32,
             shape=(None, self.n_classes),
-            name='Y'
+            name='Y_input'
         )
 
-        self.Y_hat = self.build_CNN(self.X, self.conv_sizes)
+        self.Y_test = tf.placeholder(
+            tf.float32,
+            shape=(None, self.n_classes),
+            name='Y_train'
+        )
+
+        self.Y_hat = self.build_CNN(self.X_input, self.conv_sizes)
 
         #add regularization
         #reg = 0
 
-
+        self.train_accuracy = evaluation(self.Y_hat, self.Y_input)
         cost = tf.nn.softmax_cross_entropy_with_logits(
                 logits= self.Y_hat,
-                labels= self.Y
+                labels= self.Y_input
             )
 
         self.loss = tf.reduce_mean(cost)
@@ -144,10 +150,10 @@ class CNN(object):
         with tf.variable_scope('convolutional') as scope:
             scope.reuse_variables()
             self.Y_hat_from_test = self.convolve(
-                self.X_input, reuse=True, is_training=False
+                self.X_test, reuse=True, is_training=False
             )
 
-        self.accuracy = evaluation(self.Y_hat_from_test, self.Y)
+        self.test_accuracy = evaluation(self.Y_hat_from_test, self.Y_test)
 
         #saving for later
         self.lr = lr
@@ -240,7 +246,7 @@ class CNN(object):
             
             readout_layer =  DenseLayer('readout_layer', 
                                         mi, self.n_classes,
-                                        False, 1, tf.nn.softmax, 
+                                        False, 1, lambda x: x, 
                                         readout_w_init)
 
             self.dense_layers.append(readout_layer)
@@ -318,7 +324,6 @@ class CNN(object):
 
         costs = []
         for epoch in range(self.epochs):
-
             seed += 1
 
             train_batches = supervised_random_mini_batches(X_train, Y_train, self.batch_size, seed)
@@ -328,14 +333,13 @@ class CNN(object):
             train_accuracies=[]
             test_accuracies=[]
 
-            for train_batch in train_batches:
+            for train_batch in train_batches[:-1]:
 
-                (X_train, Y_train) = train_batch
-
+                (X_train_batch, Y_train_batch) = train_batch
                 feed_dict = {
 
-                            self.X: X_train,
-                            self.Y: Y_train,
+                            self.X_input: X_train_batch,
+                            self.Y_input: Y_train_batch,
                             self.batch_sz: self.batch_size,
                             
                             }
@@ -346,7 +350,12 @@ class CNN(object):
                     )
 
                 train_acc = self.session.run(
-                    self.accuracy, feed_dict={self.X_input:X_train, self.Y:Y_train}
+
+                    self.train_accuracy,
+
+                    feed_dict={self.X_input:X_train_batch, 
+                               self.Y_input:Y_train_batch
+                               }
 
                     )
 
@@ -361,23 +370,23 @@ class CNN(object):
             if epoch % self.save_sample ==0:
                                 
                 
-                for test_batch in test_batches:
+                for i, test_batch in enumerate(test_batches[:-1]):
 
                     (X_test_batch, Y_test_batch) = test_batch
-                    #print(X_test_batch.sum(),Y_test_batch.sum())
                     feed_dict={        
-                                self.X_input: X_test_batch,
-                                self.Y: Y_test_batch,
+                                self.X_test: X_test_batch,
+                                self.Y_test: Y_test_batch,
+                                self.batch_sz: self.batch_size,
 
                                 }
-
                     test_acc = self.session.run(
-                            self.accuracy,
+                            self.test_accuracy,
                             feed_dict=feed_dict
                                    
                         )
 
                     test_accuracies.append(test_acc)
+
 
                 test_acc = np.array(test_accuracies).mean()
                 print('Evaluating performance on train/test sets')

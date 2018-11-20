@@ -1,5 +1,3 @@
-#NETWORK ARCHITECTURES
-
 import numpy as np
 import os 
 import math
@@ -19,22 +17,26 @@ LEARNING_RATE = None
 LEARNING_RATE_D = None
 LEARNING_RATE_G = None
 BETA1 = None
+COST_TYPE=None
 BATCH_SIZE = None
 EPOCHS = None
 SAVE_SAMPLE_PERIOD = None
 PATH = None
 SEED = None
 rnd_seed=1
-
+preprocess=None
+LAMBDA=.1
 
 class cycleGAN(object):
     
     def __init__(
         self, 
-        n_H, n_W, n_C,
-        mean_A, std_A, mean_B, std_B,
+        n_H_A, n_W_A, n_C_A,
+        n_H_B, n_W_B, n_C_B,
+        mean_true, std_true, mean_reco, std_reco,
         d_sizes_A, d_sizes_B, g_sizes_A, g_sizes_B,
-        lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1,
+        lr_g=LEARNING_RATE_G, lr_d=LEARNING_RATE_D, beta1=BETA1, preprocess=preprocess,
+        cost_type=COST_TYPE,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED
         ):
@@ -82,30 +84,35 @@ class cycleGAN(object):
             - path = relative path for saving samples
 
         """
-        self.mean_B = mean_B
-        self.mean_A = mean_A
+        self.mean_reco = mean_reco
+        self.mean_true = mean_true
 
-        self.std_A = std_A
-        self.std_B = std_B
+        self.std_true = std_true
+        self.std_reco = std_reco
 
         self.seed=seed
-        self.n_W = n_W
-        self.n_H = n_H
-        self.n_C = n_C
+
+        self.n_W_A = n_W_A
+        self.n_H_A = n_H_A
+
+        self.n_W_B = n_W_B
+        self.n_H_B = n_H_B
+        n_C = n_C_A
+        self.n_C = n_C 
         
         #input data
         
         self.input_A = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H, n_W, n_C),
+                   n_H_A, n_W_A, n_C),
             name='X_A',
         )
 
         self.input_B = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H, n_W, n_C),
+                   n_H_B, n_W_B, n_C),
             name='X_B',
         )
         
@@ -130,8 +137,8 @@ class cycleGAN(object):
         D_A = Discriminator(self.input_A, d_sizes_A, 'A')
         D_B = Discriminator(self.input_B, d_sizes_B, 'B')
 
-        G_A_to_B = cycleGenerator(self.input_A, self.n_H, self.n_W, g_sizes_A, 'A_to_B')
-        G_B_to_A = cycleGenerator(self.input_B, self.n_H, self.n_W, g_sizes_B, 'B_to_A')
+        G_A_to_B = cycleGenerator(self.input_A, self.n_H_B, self.n_W_B, g_sizes_A, 'A_to_B')
+        G_B_to_A = cycleGenerator(self.input_B, self.n_H_A, self.n_W_A, g_sizes_B, 'B_to_A')
         
 
         #first cycle (A to B)
@@ -175,7 +182,7 @@ class cycleGAN(object):
         self.input_test_A = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H, n_W, n_C),
+                   n_H_A, n_W_A, n_C),
             name='X_A',
         )
         # get sample images for test time
@@ -188,7 +195,7 @@ class cycleGAN(object):
         self.input_test_B = tf.placeholder(
             tf.float32,
             shape=(None, 
-                   n_H, n_W, n_C),
+                   n_H_B, n_W_B, n_C),
             name='X_B',
         )
 
@@ -197,84 +204,331 @@ class cycleGAN(object):
             self.sample_images_test_B_to_A = G_B_to_A.g_forward(
                 self.input_test_B, reuse=True, is_training=False
             )
-            
+        #parameters lists
+        self.d_params_A =[t for t in tf.trainable_variables() if 'discriminator_A' in t.name]
+        self.d_params_B =[t for t in tf.trainable_variables() if 'discriminator_B' in t.name]
+
+        self.g_params_A =[t for t in tf.trainable_variables() if 'B_to_A' in t.name]
+        self.g_params_B =[t for t in tf.trainable_variables() if 'A_to_B' in t.name]
+        
         #cost building
+
+        if cost_type == 'GAN':
         
-        #Discriminators cost
-        #cost is low if real images are predicted as real (1) 
-        # d_cost_real_A = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=logits_A,
-        #     labels=tf.ones_like(logits_A)
-        # )
-        # #cost is low if fake generated images are predicted as fake (0)
-        # d_cost_fake_A = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=sample_logits_A,
-        #     labels=tf.zeros_like(sample_logits_A)
-        # )
-        
-        d_cost_real_A=tf.squared_difference(tf.sigmoid(logits_A),1)
-        d_cost_fake_A=tf.square(tf.sigmoid(sample_logits_A))
+            #Discriminators cost
 
-        #discriminator_A cost
-        self.d_cost_A = tf.reduce_mean(d_cost_real_A) + tf.reduce_mean(d_cost_fake_A)
-        
-        #same for discriminator B
-        # d_cost_real_B = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=logits_B,
-        #     labels=tf.ones_like(logits_B)
-        # )
-        
-        # d_cost_fake_B = tf.nn.sigmoid_cross_entropy_with_logits(
-        #     logits=sample_logits_B,
-        #     labels=tf.zeros_like(sample_logits_B)
-        # )
+            #Discriminator_A cost
+            #cost is low if real images are predicted as real (1) 
+            d_cost_real_A = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_A,
+                labels=tf.ones_like(logits_A)
+            )
+            # #cost is low if fake generated images are predicted as fake (0)
+            d_cost_fake_A = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=sample_logits_A,
+                labels=tf.zeros_like(sample_logits_A)
+            )
 
-        d_cost_real_B=tf.squared_difference(tf.sigmoid(logits_B),1)
-        d_cost_fake_B=tf.square(tf.sigmoid(sample_logits_B))
+            
+            self.d_cost_A = tf.reduce_mean(d_cost_real_A) + tf.reduce_mean(d_cost_fake_A)
+            
+            #Discriminator_B cost
+            d_cost_real_B = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_B,
+                labels=tf.ones_like(logits_B)
+            )
+            
+            d_cost_fake_B = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=sample_logits_B,
+                labels=tf.zeros_like(sample_logits_B)
+            )
 
-        #discriminator_B cost
-        self.d_cost_B = tf.reduce_mean(d_cost_real_B) + tf.reduce_mean(d_cost_fake_B)
-
-        #averaging the two discriminators cost
-        #self.d_cost = (d_cost_A+d_cost_B)/2
-
-        #Generator cost 
-        #cost is low if logits from discriminator A on samples generated by G_B_to_A 
-        #are predicted as true (1)
-        # g_cost_A = tf.reduce_mean(
-        #     tf.nn.sigmoid_cross_entropy_with_logits(
-        #         logits=sample_logits_A,
-        #         labels=tf.ones_like(sample_logits_A)
-        #     )
-        # )
-
-        g_cost_A=tf.reduce_mean(tf.squared_difference(tf.sigmoid(sample_logits_A),1))
-        
-
-        #cost is low if logits from discriminator B on samples generated by G_A_to_B 
-        #are predicted as true (1)
-        # g_cost_B = tf.reduce_mean(
-        #     tf.nn.sigmoid_cross_entropy_with_logits(
-        #         logits=sample_logits_B,
-        #         labels=tf.ones_like(sample_logits_B)
-        #     )
-        # )
-
-        g_cost_B=tf.reduce_mean(tf.squared_difference(tf.sigmoid(sample_logits_B),1))
-
-        #cycle cost is low if cyclic images are similar to input images (in both sets)
-        g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
-        g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
-
-        g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
-        self.g_cost_A = g_cost_A + 10*g_cycle_cost
-        self.g_cost_B = g_cost_B + 10*g_cycle_cost
+            self.d_cost_B = tf.reduce_mean(d_cost_real_B) + tf.reduce_mean(d_cost_fake_B)
+            
 
 
+            #Generator cost 
+            #cost is low if logits from discriminator A on samples generated by G_B_to_A 
+            #are predicted as true (1)
+            g_cost_A = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    logits=sample_logits_A,
+                    labels=tf.ones_like(sample_logits_A)
+                )
+            )
+            #cost is low if logits from discriminator B on samples generated by G_A_to_B 
+            #are predicted as true (1)
+            g_cost_B = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    logits=sample_logits_B,
+                    labels=tf.ones_like(sample_logits_B)
+                )
+            )
+
+            #cycle cost is low if cyclic images are similar to input images (in both sets)
+            g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
+            g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
+
+            g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
+            self.g_cost_A = g_cost_A + 10*g_cycle_cost
+            self.g_cost_B = g_cost_B + 10*g_cycle_cost
+
+            # alpha_A = tf.random_uniform(
+            #     shape=[self.batch_sz,self.n_H_A,self.n_W_A,self.n_C],
+            #     minval=0.,
+            #     maxval=1.
+            #     )
+
+            # interpolates_A = alpha_A*self.input_A+(1-alpha_A)*sample_images_A
+
+            # with tf.variable_scope('discriminator_A') as scope:
+            #     scope.reuse_variables()
+            #     disc_A_interpolates = D_A.d_forward(interpolates_A, reuse = True)
+
+            # gradients_A = tf.gradients(disc_A_interpolates,[interpolates_A])[0]
+            # slopes_A = tf.sqrt(tf.reduce_sum(tf.square(gradients_A), reduction_indices=[1]))
+            # gradient_penalty_A = tf.reduce_mean((slopes_A-1)**2)
+            # self.d_cost_A= d_cost_A + LAMBDA*gradient_penalty_A
+
+            # alpha_B = tf.random_uniform(
+            #     shape=[self.batch_sz,self.n_H_B,self.n_W_B,self.n_C],
+            #     minval=0.,
+            #     maxval=1.
+            #     )
+
+            # interpolates_B = alpha_B*self.input_B+(1-alpha_B)*sample_images_B
+
+            # with tf.variable_scope('discriminator_B') as scope:
+            #     scope.reuse_variables()
+            #     disc_B_interpolates = D_B.d_forward(interpolates_B, reuse = True)
+
+            # gradients_B = tf.gradients(disc_B_interpolates,[interpolates_B])[0]
+            # slopes_B = tf.sqrt(tf.reduce_sum(tf.square(gradients_B), reduction_indices=[1]))
+            # gradient_penalty_B = tf.reduce_mean((slopes_B-1)**2)
+            # self.d_cost_B= d_cost_B + LAMBDA*gradient_penalty_B
+
+            self.d_train_op_A = tf.train.AdamOptimizer(
+                learning_rate=lr_d,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.d_cost_A,
+                var_list=self.d_params_A
+            )
+
+            self.d_train_op_B = tf.train.AdamOptimizer(
+                learning_rate=lr_d,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.d_cost_B,
+                var_list=self.d_params_B
+            )
+            
+            self.g_train_op_A = tf.train.AdamOptimizer(
+                learning_rate=lr_g,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.g_cost_A,
+                var_list=self.g_params_A
+            )
+
+            self.g_train_op_B = tf.train.AdamOptimizer(
+                learning_rate=lr_g,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.g_cost_B,
+                var_list=self.g_params_B
+            )
+
+        if cost_type == 'WGAN-clip':
+
+            #Discriminators cost
+            #Discriminator A
+
+            self.d_cost_A = tf.reduce_mean(sample_logits_A) - tf.reduce_mean(logits_A)
+            self.d_cost_B = tf.reduce_mean(sample_logits_B) - tf.reduce_mean(logits_B)
+
+            g_cost_A = -tf.reduce_mean(sample_logits_A)
+            g_cost_B = -tf.reduce_mean(sample_logits_B)
+
+            g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
+            g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
+
+            g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
+            self.g_cost_A = g_cost_A + 10*g_cycle_cost
+            self.g_cost_B = g_cost_B + 10*g_cycle_cost
+            
+            #clip weights in D
+            clip_values=[-0.01,0.01]
+            self.clip_discriminator_A_var_op = [var.assign(tf.clip_by_value(var, clip_values[0], clip_values[1])) for
+                                            var in self.d_params_A]
+            self.clip_discriminator_B_var_op = [var.assign(tf.clip_by_value(var, clip_values[0], clip_values[1])) for
+                                            var in self.d_params_B]
+            
+            # alpha_A = tf.random_uniform(
+            #     shape=[self.batch_sz,self.n_H_A,self.n_W_A,self.n_C],
+            #     minval=0.,
+            #     maxval=1.
+            #     )
+
+            # interpolates_A = alpha_A*self.input_A+(1-alpha_A)*sample_images_A
+
+            # with tf.variable_scope('discriminator_A') as scope:
+            #     scope.reuse_variables()
+            #     disc_A_interpolates = D_A.d_forward(interpolates_A,reuse = True)
+
+            # gradients_A = tf.gradients(disc_A_interpolates,[interpolates_A])[0]
+            # slopes_A = tf.sqrt(tf.reduce_sum(tf.square(gradients_A), reduction_indices=[1]))
+            # gradient_penalty_A = tf.reduce_mean((slopes_A-1)**2)
+            # self.d_cost_A+=LAMBDA*gradient_penalty_A
+
+            # alpha_B = tf.random_uniform(
+            #     shape=[self.batch_sz,self.n_H_B,self.n_W_B,self.n_C],
+            #     minval=0.,
+            #     maxval=1.
+            #     )
+
+            # interpolates_B = alpha_B*self.input_B+(1-alpha_B)*sample_images_B
+
+            # with tf.variable_scope('discriminator_B') as scope:
+            #     scope.reuse_variables()
+            #     disc_B_interpolates = D_B.d_forward(interpolates_B,reuse = True)
+
+            # gradients_B = tf.gradients(disc_B_interpolates,[interpolates_B])[0]
+            # slopes_B = tf.sqrt(tf.reduce_sum(tf.square(gradients_B), reduction_indices=[1]))
+            # gradient_penalty_B = tf.reduce_mean((slopes_B-1)**2)
+            # self.d_cost_B+=LAMBDA*gradient_penalty_B
+
+            self.d_train_op_A = tf.train.RMSPropOptimizer(
+                learning_rate=lr_d,
+                # beta1=beta1,
+                # beta2=0.9,
+            ).minimize(
+                self.d_cost_A,
+                var_list=self.d_params_A
+            )
+
+            self.d_train_op_B = tf.train.RMSPropOptimizer(
+                learning_rate=lr_d,
+                # beta1=beta1,
+                # beta2=0.9,
+            ).minimize(
+                self.d_cost_B,
+                var_list=self.d_params_B
+            )
+            
+            self.g_train_op_A = tf.train.RMSPropOptimizer(
+                learning_rate=lr_g,
+                # beta1=beta1,
+                # beta2=0.9,
+            ).minimize(
+                self.g_cost_A,
+                var_list=self.g_params_A
+            )
+
+            self.g_train_op_B = tf.train.RMSPropOptimizer(
+                learning_rate=lr_g,
+                # beta1=beta1,
+                # beta2=0.9,
+            ).minimize(
+                self.g_cost_B,
+                var_list=self.g_params_B
+            )
+
+        if cost_type == 'WGAN-gp':
+
+            #Discriminators cost
+            #Discriminator A
+
+            self.d_cost_A = tf.reduce_mean(sample_logits_A) - tf.reduce_mean(logits_A)
+            self.d_cost_B = tf.reduce_mean(sample_logits_B) - tf.reduce_mean(logits_B)
+
+            self.g_cost_A = -tf.reduce_mean(sample_logits_A)
+            self.g_cost_B = -tf.reduce_mean(sample_logits_B)
+
+            # g_cycle_cost_A = tf.reduce_mean(tf.abs(self.input_A-cycl_A)) 
+            # g_cycle_cost_B = tf.reduce_mean(tf.abs(self.input_B-cycl_B))
+
+            # g_cycle_cost= g_cycle_cost_A+g_cycle_cost_B
+            # self.g_cost_A = g_cost_A + 0*g_cycle_cost
+            # self.g_cost_B = g_cost_B + 0*g_cycle_cost
+            
+            
+            alpha_A = tf.random_uniform(
+                shape=[self.batch_sz,self.n_H_A,self.n_W_A,self.n_C],
+                minval=0.,
+                maxval=1.
+                )
+
+            interpolates_A = alpha_A*self.input_A+(1-alpha_A)*sample_images_A
+
+            with tf.variable_scope('discriminator_A') as scope:
+                scope.reuse_variables()
+                disc_A_interpolates = D_A.d_forward(interpolates_A,reuse = True)
+
+            gradients_A = tf.gradients(disc_A_interpolates,[interpolates_A])[0]
+            slopes_A = tf.sqrt(tf.reduce_sum(tf.square(gradients_A), reduction_indices=[1]))
+            gradient_penalty_A = tf.reduce_mean((slopes_A-1)**2)
+            self.d_cost_A+=LAMBDA*gradient_penalty_A
+
+            alpha_B = tf.random_uniform(
+                shape=[self.batch_sz,self.n_H_B,self.n_W_B,self.n_C],
+                minval=0.,
+                maxval=1.
+                )
+
+            interpolates_B = alpha_B*self.input_B+(1-alpha_B)*sample_images_B
+
+            with tf.variable_scope('discriminator_B') as scope:
+                scope.reuse_variables()
+                disc_B_interpolates = D_B.d_forward(interpolates_B,reuse = True)
+
+            gradients_B = tf.gradients(disc_B_interpolates,[interpolates_B])[0]
+            slopes_B = tf.sqrt(tf.reduce_sum(tf.square(gradients_B), reduction_indices=[1]))
+            gradient_penalty_B = tf.reduce_mean((slopes_B-1)**2)
+            self.d_cost_B+=LAMBDA*gradient_penalty_B
+
+            self.d_train_op_A = tf.train.AdamOptimizer(
+                learning_rate=lr_d,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.d_cost_A,
+                var_list=self.d_params_A
+            )
+
+            self.d_train_op_B = tf.train.AdamOptimizer(
+                learning_rate=lr_d,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.d_cost_B,
+                var_list=self.d_params_B
+            )
+            
+            self.g_train_op_A = tf.train.AdamOptimizer(
+                learning_rate=lr_g,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.g_cost_A,
+                var_list=self.g_params_A
+            )
+
+            self.g_train_op_B = tf.train.AdamOptimizer(
+                learning_rate=lr_g,
+                beta1=beta1,
+                beta2=0.9,
+            ).minimize(
+                self.g_cost_B,
+                var_list=self.g_params_B
+            )
         
         #Measure accuracy of the discriminators
-        #discriminator A
-
+        
         real_predictions_A = tf.cast(logits_A>0,tf.float32)
         fake_predictions_A = tf.cast(sample_logits_A<0,tf.float32)
         
@@ -291,48 +545,6 @@ class cycleGAN(object):
         
         self.d_accuracy_B = num_correct_B/num_predictions
 
-        # self.model_vars = tf.trainable_variables()
-        
-        #optimizers
-        self.d_params_A =[t for t in tf.trainable_variables() if 'discriminator_A' in t.name]
-        self.d_params_B =[t for t in tf.trainable_variables() if 'discriminator_B' in t.name]
-
-        self.g_params_A =[t for t in tf.trainable_variables() if 'B_to_A' in t.name]
-        self.g_params_B =[t for t in tf.trainable_variables() if 'A_to_B' in t.name]
-        
-
-        self.d_train_op_A = tf.train.AdamOptimizer(
-            learning_rate=lr_d,
-            beta1=beta1,
-        ).minimize(
-            self.d_cost_A,
-            var_list=self.d_params_A
-        )
-
-        self.d_train_op_B = tf.train.AdamOptimizer(
-            learning_rate=lr_d,
-            beta1=beta1,
-        ).minimize(
-            self.d_cost_B,
-            var_list=self.d_params_B
-        )
-        
-        self.g_train_op_A = tf.train.AdamOptimizer(
-            learning_rate=lr_g,
-            beta1=beta1,
-        ).minimize(
-            self.g_cost_A,
-            var_list=self.g_params_A
-        )
-
-        self.g_train_op_B = tf.train.AdamOptimizer(
-            learning_rate=lr_g,
-            beta1=beta1,
-        ).minimize(
-            self.g_cost_B,
-            var_list=self.g_params_B
-        )
-
         self.batch_size=batch_size
         self.epochs=epochs
         self.save_sample=save_sample
@@ -346,6 +558,8 @@ class cycleGAN(object):
         self.G_B_to_A=G_B_to_A
         self.sample_images_B=sample_images_B
         self.sample_images_A=sample_images_A
+        self.preprocess=preprocess
+        self.cost_type=cost_type
     
     def set_session(self, session):
         
@@ -384,8 +598,8 @@ class cycleGAN(object):
         total_iters=0
 
         print('\n ****** \n')
-        print('Training cycle GAN with a total of ' +str(N)+' samples distributed in batches of size '+str(self.batch_size)+'\n')
-        print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' epoch a generated sample will be saved to '+ self.path)
+        print('Training cycle GAN with a total of ' +str(N)+' samples distributed in '+ str(N//self.batch_size) +' batches of size '+str(self.batch_size)+'\n')
+        print('The learning rate set for the generator is '+str(self.lr_g)+' while for the discriminator is '+str(self.lr_d)+', and every ' +str(self.save_sample)+ ' batches a generated sample will be saved to '+ self.path)
         print('\n ****** \n')
 
         for epoch in range(self.epochs):
@@ -403,56 +617,69 @@ class cycleGAN(object):
             batches_B = unsupervised_random_mini_batches(X_B, self.batch_size, seed)
 
             for X_batch_A, X_batch_B in zip(batches_A,batches_B):
-                
+                bs = X_batch_A.shape[0]
+                if self.cost_type=='GAN':
+                    discr_steps=1
+                    gen_steps=2
+                if self.cost_type=='WGAN-gp':
+                    discr_steps=10
+                    gen_steps=1
+
                 t0 = datetime.now()
                 
                 #optimize generator_A
-
-                _, g_cost_A =  self.session.run(
-                    (self.g_train_op_A, self.g_cost_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
+                g_cost_A=0
+                for i in range(gen_steps):
+                    _, g_cost_A =  self.session.run(
+                        (self.g_train_op_A, self.g_cost_A),
+                        feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:bs},
+                    )
+                    
+                    g_cost_A+=g_cost_A
                 
-                # _, g_cost_A2, fake_images_B_temp =  self.session.run(
-                #     (self.g_train_op_A, self.g_cost_A, self.sample_images_B),
-                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                # )
-                # g_cost_A = (g_cost_A1+g_cost_A2)/2
-                g_costs_A.append(g_cost_A) # just use the avg    
+                g_costs_A.append(g_cost_A/gen_steps) # just use the avg    
+
 
                 #optimize discriminator_B
+                d_cost_B=0
+                for i in range(discr_steps):
 
-                _, d_cost_B, d_acc_B = self.session.run(
-                    (self.d_train_op_B, self.d_cost_B, self.d_accuracy_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
+                    _, d_cost_B, d_acc_B, = self.session.run(
+                        (self.d_train_op_B, self.d_cost_B, self.d_accuracy_B),
+                        feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:bs},
+                    )
+                    if self.cost_type == 'WGAN-clip':
 
-                d_costs_B.append(d_cost_B)
+                        _ = self.session.run(self.clip_discriminator_B_var_op)
+                    d_cost_B+=d_cost_B
+
+                d_costs_B.append(d_cost_B/discr_steps)
 
                 #optimize generator_B
-
-                _, g_cost_B =  self.session.run(
-                    (self.g_train_op_B, self.g_cost_B),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
+                g_cost_B=0
+                for i in range(gen_steps):
+                    _, g_cost_B =  self.session.run(
+                        (self.g_train_op_B, self.g_cost_B),
+                        feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:bs},
+                    )
+                    g_cost_B+=g_cost_B
                 
-                # _, g_cost_B2, fake_images_A_temp =  self.session.run(
-                #     (self.g_train_op_B, self.g_cost_B, self.sample_images_A),
-                #     feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                # )
+                g_costs_B.append(g_cost_B/gen_steps) 
 
-                # g_cost_B = (g_cost_B1+g_cost_B2)/2
-                g_costs_B.append(g_cost_B) 
+                d_cost_A=0
+                for i in range(discr_steps):
+                    #optimize Discriminator_A 
+                    _, d_cost_A, d_acc_A,  = self.session.run(
+                        (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
+                        feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:bs},
+                    )
 
+                    if self.cost_type == 'WGAN-clip':
 
-                #optimize Discriminator_A 
-                _, d_cost_A, d_acc_A = self.session.run(
-                    (self.d_train_op_A, self.d_cost_A, self.d_accuracy_A),
-                    feed_dict={self.input_A:X_batch_A, self.input_B:X_batch_B, self.batch_sz:self.batch_size},
-                )
+                        _ = self.session.run(self.clip_discriminator_A_var_op)
+                    d_cost_A+=d_cost_A
 
-                d_costs_A.append(d_cost_A)
-
+                d_costs_A.append(d_cost_A/discr_steps)
 
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
@@ -462,9 +689,12 @@ class cycleGAN(object):
                     print("Discrimator_B cost {0:.4g}, Generator_B_to_A cost {1:.4g}".format(d_cost_B, g_cost_B))
                     print('Saving a sample...')
                     
+                    #A is true
+                    #B is reco
                     
                     #shape is (1,D,D,color)
-                    _, n_H, n_W, n_C = X_batch_A.shape 
+                    _, n_H_A, n_W_A, n_C = X_batch_A.shape 
+                    _, n_H_B, n_W_B, _ = X_batch_B.shape 
                     
                     #for i in range(10):
 
@@ -472,76 +702,64 @@ class cycleGAN(object):
 
                     X_batch_A = X_batch_A[j]
                     X_batch_B = X_batch_B[j]
-
-                    #X_batch_A= X_batch_A.reshape(1,n_H,n_W,n_C)
                     
-                    sample_B = self.get_sample_A_to_B(X_batch_A.reshape(1,n_H,n_W,n_C))
-                    sample_A = self.get_sample_B_to_A(X_batch_B.reshape(1,n_H,n_W,n_C))
+                    sample_B = self.get_sample_A_to_B(X_batch_A.reshape(1,n_H_A,n_W_A,n_C))
+                    sample_A = self.get_sample_B_to_A(X_batch_B.reshape(1,n_H_B,n_W_B,n_C))
 
 
                     plt.subplot(2,2,1)
-                    X_batch_A=(X_batch_A*self.std_A+self.mean_A).astype(np.int32)
+                    if self.preprocess:
+                        X_batch_A=np.where(X_batch_A!=0,X_batch_A*self.std_true+self.mean_true,0)
 
-                    X_batch_A[np.where(X_batch_A<0)]=0
-                    X_batch_A[np.where(X_batch_A>255)]=255
-
-                    plt.imshow(X_batch_A.astype(np.int32))
+                    plt.imshow(X_batch_A.reshape(n_H_A,n_W_A))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,2)
-                    sample_B=(sample_B*self.std_B+self.mean_B).astype(np.int32)
+                    if self.preprocess:
+                        sample_B=np.where(sample_B!=0,sample_B*self.std_reco+self.mean_reco,0)
 
-                    sample_B[np.where(sample_B<0)]=0
-                    sample_B[np.where(sample_B>255)]=255
-
-                    plt.imshow(sample_B.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.imshow(sample_B.reshape(n_H_B,n_W_B))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,3)
-                    X_batch_B=(X_batch_B*self.std_B+self.mean_B).astype(np.int32)
+                    if self.preprocess:
+                        X_batch_B=np.where(X_batch_B!=0,X_batch_B*self.std_reco+self.mean_reco,0)
 
-                    X_batch_B[np.where(X_batch_B<0)]=0
-                    X_batch_B[np.where(X_batch_B>255)]=255
-
-
-                    plt.imshow(X_batch_B.astype(np.int32))
+                    plt.imshow(X_batch_B.reshape(n_H_B,n_W_B))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
 
                     plt.subplot(2,2,4)
-                    sample_A=(sample_A*self.std_A+self.mean_A).astype(np.int32)
+                    if self.preprocess:
+                        sample_A=np.where(sample_A!=0,sample_A*self.std_true+self.mean_true,0)
 
-                    sample_A[np.where(sample_A<0)]=0
-                    sample_A[np.where(sample_A>255)]=255
-
-                    plt.imshow(sample_A.reshape(n_H,n_W,n_C).astype(np.int32))
+                    plt.imshow(sample_A.reshape(n_H_A,n_W_A))
                     plt.axis('off')
                     plt.subplots_adjust(wspace=0.2,hspace=0.2)
                     
 
                     fig = plt.gcf()
                     fig.set_size_inches(10,8)
-                    plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=150)
+                    plt.savefig(self.path+'/sample_at_iter_{0}.png'.format(total_iters),dpi=100)
 
-
-                    
             plt.clf()
-            plt.plot(d_costs_A, label='discriminator cost')
-            plt.plot(g_costs_B, label='generator cost')
+            plt.plot(d_costs_A, label='Discriminator A cost')
+            plt.plot(g_costs_A, label='Generator A cost')
             plt.legend()
             fig = plt.gcf()
             fig.set_size_inches(8,5)
-            plt.savefig(self.path+'/cost vs iteration.png',dpi=150)
-    
-    # def sample(self, Z):
-        
-    #     samples = self.session.run(
-    #         self.sample_images_test, 
-    #         feed_dict={self.Z:Z, self.batch_sz: self.batch_size})
+            plt.savefig(self.path+'/cost_iteration_A.png',dpi=150)
 
-    #     return samples 
+            plt.clf()
+            plt.plot(d_costs_B, label='Discriminator B cost')
+            plt.plot(g_costs_B, label='Generator B cost')
+            plt.legend()
+            fig = plt.gcf()
+            fig.set_size_inches(8,5)
+            plt.savefig(self.path+'/cost_iteration_B.png',dpi=150)
+    
 
     def fake_img_pool(self, num_fakes, fake_img, fake_pool):
 

@@ -191,17 +191,29 @@ class resCNN(object):
             for key in conv_sizes:
                 
                 if 'block' and 'shortcut' in key:
+                    if block_n>0:
+                        conv_block = ConvBlock(block_n,
+                                   mi, conv_sizes,
+                                   )
+                        self.conv_blocks.append(conv_block)
+                        
+                        mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
+                        mi = mo
+                        dim_H = conv_block.output_dim(dim_H)
+                        dim_W = conv_block.output_dim(dim_W)
+                        block_n+=1
 
-                    conv_block = ConvBlock(block_n,
-                               mi, conv_sizes,
-                               )
-                    self.conv_blocks.append(conv_block)
-                    
-                    mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
-                    mi = mo
-                    dim_H = conv_block.output_dim(dim_H)
-                    dim_W = conv_block.output_dim(dim_W)
-                    block_n+=1
+                    else:
+                        conv_block = ConvBlock(block_n,
+                                   mi, conv_sizes,
+                                   )
+                        self.conv_blocks.append(conv_block)
+                        
+                        mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
+                        mi = mo
+                        dim_H = conv_block.output_dim(dim_H)
+                        dim_W = conv_block.output_dim(dim_W)
+                        block_n+=1
 
                 if 'conv_layer' in key:
 
@@ -243,7 +255,7 @@ class resCNN(object):
 
                         avgpool_layer = AvgPool2D(filter_sz, stride, keep_prob)
 
-                        self.conv_blocks.append(avg_layer)
+                        self.conv_blocks.append(avgpool_layer)
                         
                         dim_W = int(np.ceil(float(dim_W) / stride))
                         dim_H = int(np.ceil(float(dim_H) / stride))
@@ -286,8 +298,8 @@ class resCNN(object):
         i=0
         for block in self.conv_blocks:
             i+=1
-            # print('Convolution_block_%i' %i)
-            # print('Input shape', output.get_shape())
+            print('Convolution_block_%i' %i)
+            print('Input shape', output.get_shape())
             output = block.forward(output,
                                      reuse,
                                      is_training)
