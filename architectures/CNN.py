@@ -404,10 +404,11 @@ class CNN(object):
 
         #get samples at test time
     
-    def predicted_Y_hat(self, X):
+    def predict(self, X):
+
         pred = tf.nn.softmax(self.Y_hat_from_test)
         output = self.session.run(
             pred, 
-            feed_dict={self.X_input:X}
+            feed_dict={self.X_test:X}
             )
         return output

@@ -24,18 +24,36 @@ SAVE_SAMPLE_PERIOD = None
 PATH = None
 SEED = None
 rnd_seed=1
-preprocess=None
+PREPROCESS=None
 LAMBDA=.01
+EPS=1e-6
+
+DISCR_STEPS=None
+GEN_STEPS=None
+
+min_true=None
+max_true=None
+
+min_reco=None
+max_reco=None
+
+n_H=None
+n_W=None
+n_C=None
+
+d_sizes=None
+g_sizes=None
 
 #tested on mnist
 class DCGAN(object):
     
     def __init__(
         self,
-        n_H, n_W, n_C,
-        d_sizes,g_sizes,
-        lr=LEARNING_RATE, beta1=BETA1, preprocess=preprocess,
+        n_H=n_H, n_W=n_H, n_C=n_C,
+        d_sizes= d_sizes,g_sizes=g_sizes,
+        lr=LEARNING_RATE, beta1=BETA1, preprocess=PREPROCESS,
         cost_type=COST_TYPE,
+        discr_steps=DISCR_STEPS, gen_steps=GEN_STEPS,
         batch_size=BATCH_SIZE, epochs=EPOCHS,
         save_sample=SAVE_SAMPLE_PERIOD, path=PATH, seed=SEED,
         ):
@@ -108,22 +126,22 @@ class DCGAN(object):
             name='batch_sz'
         )
 
-        D = Discriminator_minibatch(self.X, d_sizes, 'A')
+        D = Discriminator(self.X, d_sizes, 'A')
+
+        G = Generator(self.Z, self.n_H, self.n_W, g_sizes, 'A')
         
         with tf.variable_scope('discriminator_A') as scope:
             
-            logits, feature_real = D.d_forward(self.X)
-
-        G = Generator(self.Z, self.n_H, self.n_W, g_sizes, 'A')
+            logits_real = D.d_forward(self.X)
 
         with tf.variable_scope('generator_A') as scope:
 
-            self.sample_images = G.g_forward(self.Z)
+            sample_images = G.g_forward(self.Z)
         
         # get sample logits
         with tf.variable_scope('discriminator_A') as scope:
             scope.reuse_variables()
-            sample_logits, feature_fake = D.d_forward(self.sample_images, reuse=True)
+            logits_fake = D.d_forward(sample_images, reuse=True)
                 
         # get sample images for test time
         with tf.variable_scope('generator_A') as scope:
@@ -134,21 +152,28 @@ class DCGAN(object):
 
         #parameters list
 
+        predicted_real= tf.nn.sigmoid(logits_real)
+        #predicted_real=tf.maximum(tf.minimum(predicted_real, 0.99), 0.01)
+            
+        predicted_fake=tf.nn.sigmoid(logits_fake)
+        #predicted_fake=tf.maximum(tf.minimum(predicted_fake, 0.99), 0.01)
+
         self.d_params =[t for t in tf.trainable_variables() if t.name.startswith('d')]
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
-        #cost building
-        
+        #using some label smoothing
+        epsilon=1e-3
         if cost_type == 'GAN':
+            
             #Discriminator cost
             self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=logits,
-                labels=tf.ones_like(logits)
+                logits=logits_real,
+                labels=(1-epsilon)*tf.ones_like(logits_real)
             )
             
             self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=sample_logits,
-                labels=tf.zeros_like(sample_logits)
+                logits=logits_fake,
+                labels=epsilon+tf.zeros_like(logits_fake)
             )
             
             self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
@@ -156,52 +181,39 @@ class DCGAN(object):
             #Generator cost
             self.g_cost = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(
-                    logits=sample_logits,
-                    labels=tf.ones_like(sample_logits)
+                    logits=logits_fake,
+                    labels=(1-epsilon)*tf.ones_like(logits_fake)
                 )
             )
-
-        if cost_type == 'WGAN-gp':
-
-            self.d_cost = tf.reduce_mean(lrelu(sample_logits)) - tf.reduce_mean(lrelu(logits))
-            self.g_cost = -tf.reduce_mean(lrelu(sample_logits))
-
-            alpha = tf.random_uniform(
-                shape=[self.batch_sz,self.n_H,self.n_W,self.n_C],
-                minval=0.,
-                maxval=1.
-                )
-
-            interpolates = alpha*self.X+(1-alpha)*self.sample_images
-
-            with tf.variable_scope('discriminator_A') as scope:
-                scope.reuse_variables()
-                disc_interpolates = D.d_forward(interpolates,reuse = True)
-
-            gradients = tf.gradients(disc_interpolates,[interpolates])[0]
-            slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-            gradient_penalty = tf.reduce_mean((slopes-1)**2)
-            self.d_cost+=LAMBDA*gradient_penalty
-
+            # #Discriminator cost
+            
+             
+            # self.d_cost_real = tf.reduce_mean(-tf.log(predicted_real + epsilon))
+            # self.d_cost_fake = tf.reduce_mean(-tf.log(1 + epsilon - predicted_fake))
+            # self.d_cost = self.d_cost_real+self.d_cost_fake
+            
+            # #Generator cost
+            # self.g_cost = tf.reduce_mean(-tf.log(predicted_fake + epsilon))
 
         self.d_train_op = tf.train.AdamOptimizer(
-                learning_rate=lr,
-                beta1=beta1,
-                ).minimize(
-                self.d_cost,
-                var_list=self.d_params
-            )
-        
+            learning_rate=lr,
+            beta1=beta1,
+            ).minimize(
+            self.d_cost,
+            var_list=self.d_params
+        )
+    
         self.g_train_op = tf.train.AdamOptimizer(
-                learning_rate=lr,
-                beta1=beta1,
-                ).minimize(
-                self.g_cost,
-                var_list=self.g_params
+            learning_rate=lr,
+            beta1=beta1,
+            ).minimize(
+            self.g_cost,
+            var_list=self.g_params
             )
+        #Measure accuracy of the discriminator
 
-        real_predictions = tf.cast(logits>0.5,tf.float32)
-        fake_predictions = tf.cast(sample_logits<0.5,tf.float32)
+        real_predictions = tf.cast(predicted_real>0.5,tf.float32)
+        fake_predictions = tf.cast(predicted_fake<0.5,tf.float32)
         
         num_predictions=2.0*batch_size
         num_correct = tf.reduce_sum(real_predictions)+tf.reduce_sum(fake_predictions)
@@ -215,9 +227,11 @@ class DCGAN(object):
         self.epochs=epochs
         self.save_sample=save_sample
         self.path=path
-        self.lr=lr
+        self.lr = lr
         self.D=D
         self.G=G
+        self.discr_steps=discr_steps
+        self.gen_steps=gen_steps
                 
     def set_session(self, session):
         
@@ -241,6 +255,9 @@ class DCGAN(object):
         d_costs = []
         g_costs = []
 
+        discr_steps=self.discr_steps
+        gen_steps=self.gen_steps
+
         N = len(X)
         n_batches = N // self.batch_size
     
@@ -263,19 +280,13 @@ class DCGAN(object):
 
                 bs = X_batch.shape[0]
 
-                if self.cost_type=='GAN':
-                    discr_steps=1
-                    gen_steps=4
-                if self.cost_type=='WGAN-gp':
-                    discr_steps=10
-                    gen_steps=1
-
                 t0 = datetime.now()
                 
                 np.random.seed(seed)
                 d_cost=0
                 for i in range(discr_steps):
-                    Z = np.random.uniform(-1,1, size= (bs, self.latent_dims))
+
+                    Z = np.random.normal(size= (bs, self.latent_dims))
                     
                     _, d_cost, d_acc = self.session.run(
                         (self.d_train_op, self.d_cost, self.d_accuracy),
@@ -290,21 +301,24 @@ class DCGAN(object):
                 #discriminator learns too fast
                 g_cost=0
                 for i in range(gen_steps):
+
+                    Z = np.random.normal(size= (bs, self.latent_dims))
                     _, g_cost =  self.session.run(
                         (self.g_train_op, self.g_cost),
-                        feed_dict={self.Z:Z, self.batch_sz:bs},
+                        feed_dict={self.X: X_batch, self.Z:Z, self.batch_sz: bs},
                     )
                     g_cost+=g_cost
                 
                 g_costs.append(g_cost/gen_steps) 
             
+
                 total_iters += 1
                 if total_iters % self.save_sample ==0:
                     print("At iter: %d  -  dt: %s - d_acc: %.4f" % (total_iters, datetime.now() - t0, d_acc))
                     print('Saving a sample...')
                     
                     np.random.seed(seed)
-                    Z = np.random.uniform(-1,1, size=(16,self.latent_dims))
+                    Z = np.random.normal(size= (16, self.latent_dims))
                     
                     samples = self.sample(Z)#shape is (64,D,D,color)
                     
@@ -323,20 +337,20 @@ class DCGAN(object):
                         plt.axis('off')
                     
                     fig = plt.gcf()
-                    fig.set_size_inches(5,7)
+                    fig.set_size_inches(5,5)
                     plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=300)
 
 
                     
-            plt.clf()
-            
-            plt.plot(d_costs, label='Discriminator cost')
-            plt.plot(g_costs, label='Generator cost')
-            plt.legend()
-            
-            fig = plt.gcf()
-            fig.set_size_inches(10,5)
-            plt.savefig(self.path+'/cost vs iteration.png',dpi=300)
+                    plt.clf()
+                    
+                    plt.plot(d_costs, label='Discriminator cost')
+                    plt.plot(g_costs, label='Generator cost')
+                    plt.legend()
+                    
+                    fig = plt.gcf()
+                    fig.set_size_inches(10,5)
+                    plt.savefig(self.path+'/cost vs iteration.png',dpi=300)
     
     def sample(self, Z):
         

@@ -15,6 +15,7 @@ Bernoulli = tf.contrib.distributions.Bernoulli
 
 from architectures.utils.NN_building_blocks import *
 from architectures.utils.toolbox import *
+
 #GANS
 
 #(residual) convolution to (?,1) shape
@@ -543,11 +544,12 @@ class Discriminator_minibatch(object):
         print('Logits shape', logits.get_shape())
         return logits, feature_output
 
+#conditional discriminator, convolution to (?, 1) shape with minibatch discrimination, outputs features for feature matching
 class condDiscriminator(object):
     def __init__(self, X, dim_y, d_sizes, d_name):
 
-        self.num_kernels=5
-        self.kernel_dim=3
+        self.num_kernels=12
+        self.kernel_dim=12
 
         self.residual=False
 
@@ -594,6 +596,7 @@ class condDiscriminator(object):
                     #building discriminator dense layers
                 mi = mi + dim_y
                 self.d_dense_layers = []
+                self.mb_dense_layers = [] 
                 for i, (mo, apply_batch_norm, keep_prob, act_f, w_init) in enumerate(d_sizes['dense_layers'], 0):
                     
                     name = 'd_dense_layer_%s' %count
@@ -616,8 +619,8 @@ class condDiscriminator(object):
 
                 name = 'd_dense_layer_%s' %count
                 w_init_last = d_sizes['readout_layer_w_init']
-                #print(name)+self.num_kernels
-                self.d_final_layer = DenseLayer(name, mi, 1, 
+                #mi + self.num_kernels
+                self.d_final_layer = DenseLayer(name, mi + self.num_kernels, 1, 
                                                     False, keep_prob=1, 
                                                     act_f=lambda x: x, w_init=w_init_last)
                 
@@ -744,23 +747,28 @@ class condDiscriminator(object):
                                        reuse,
                                        is_training)
                 output = lin_concat(output, y, self.dim_y)
+
                 if i==len(self.d_dense_layers)-1:
+
                     output_mb=self.mb_layer.forward(output, 
                                                 reuse, 
                                                 is_training)
+
+                    activation = tf.reshape(output_mb, (-1, self.num_kernels, self.kernel_dim))
+                    diffs = tf.expand_dims(activation, 3) - tf.expand_dims(
+                        tf.transpose(activation, [1, 2, 0]), 0)
+
+                    #eps = tf.expand_dims(tf.eye(tf.shape(X)[0], dtype=np.float32), 1)
+                    abs_diffs = tf.reduce_sum(tf.abs(diffs), 2) #+ eps
+                    minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
+                    print('minibatch features shape', minibatch_features.get_shape())
+                    output=tf.concat([output, minibatch_features], 1)
+
                 i+=1
 
                 #print('After dense layer_%i' %i)
                 #print('Shape', output.get_shape())
-            activation = tf.reshape(output_mb, (-1, self.num_kernels, self.kernel_dim))
-            diffs = tf.expand_dims(activation, 3) - tf.expand_dims(
-                tf.transpose(activation, [1, 2, 0]), 0)
-
-            eps = tf.expand_dims(tf.eye(tf.shape(X)[0], dtype=np.float32), 1)
-            abs_diffs = tf.reduce_sum(tf.abs(diffs), 2) + eps
-            minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
-            print('minibatch features shape', minibatch_features.get_shape())
-            #output=tf.concat([output, minibatch_features], 1)
+                
             logits = self.d_final_layer.forward(output, 
                                                 reuse,
                                                 is_training)
@@ -804,8 +812,7 @@ class condDiscriminator(object):
             print('Logits shape', logits.get_shape())
             return logits
 
-
-#(residual) deconvolution to (?,n_H, n_W,n_C) image shape
+#(residual) deconvolution of (?, latent_dims,) to (?,n_H, n_W,n_C) image shape
 class Generator(object):
 
     def __init__(self, Z, dim_H, dim_W, g_sizes, g_name):
@@ -1556,7 +1563,7 @@ class cycleGenerator_fullresidual(object):
         return output
 
 #pix2pix architecture, u_net
-#works with same dim of input and output, implement different dimensions
+#works with same dim of input and output
 class pix2pixGenerator(object):
 
     def __init__(self, X, output_dim_H, output_dim_W, g_enc_sizes, g_dec_sizes, g_name):
@@ -1703,7 +1710,7 @@ class pix2pixGenerator(object):
         print('Generator output shape', output.get_shape())
         return output
 
-#same as pix2pix with input noise
+#same as pix2pixGenerator with input noise
 class bicycleGenerator(object):
 
     def __init__(self, X, output_dim_H, output_dim_W, g_sizes_enc, g_sizes_dec, g_name):
@@ -1859,6 +1866,7 @@ class bicycleGenerator(object):
         print('Generator output shape', output.get_shape())
         return output
 
+#(residual) conditional generator, label injected at every step
 class condGenerator(object):
     def __init__(self, dim_y, dim_H, dim_W, g_sizes, g_name):
 
@@ -2188,18 +2196,17 @@ class condGenerator(object):
             print('Deconvoluted output shape', output.get_shape())
             return output
 
-
 #VARIATIONAL_AUTOENCODERS
 
 class denseEncoder:
 
-    def __init__(self, X, e_sizes, name):
+    def __init__(self, X, e_sizes, e_name):
 
         latent_dims = e_sizes['z']
 
         _, mi = X.get_shape().as_list()
 
-        with tf.variable_scope('encoder'+name) as scope:
+        with tf.variable_scope('encoder'+e_name) as scope:
 
             self.e_layers=[]
 
@@ -2217,34 +2224,52 @@ class denseEncoder:
                 self.e_layers.append(layer)
                 mi = mo
 
-            name = 'layer_{0}'.format(count)
 
-            last_enc_layer = DenseLayer(name, mi, 2*latent_dims,
-                False, 1, act_f=lambda x:x, w_init=e_sizes['last_layer_weight_init'])
+            name = 'e_last_dense_layer_mu'
+            w_init_last = e_sizes['readout_layer_w_init']
+            #print(name)
+            self.e_final_layer_mu = DenseLayer(name, mi, latent_dims, 
+                                                False, keep_prob=1, 
+                                                act_f=lambda x: x, w_init=w_init_last)
+            name = 'e_last_dense_layer_sigma'
+            self.e_final_layer_sigma = DenseLayer(name, mi, latent_dims, 
+                                                False, keep_prob=1, 
+                                                act_f=tf.nn.softplus, w_init=w_init_last)
 
-            self.latent_dims = latent_dims
-            self.e_layers.append(last_enc_layer)
+            self.e_name=e_name
+            self.latent_dims=latent_dims
 
-    def encode(self, X, reuse = None, is_training=False):
+    def e_forward(self, X, reuse = None, is_training=False):
 
         output=X
         for layer in self.e_layers:
             output = layer.forward(output, reuse, is_training)
 
-        self.means = output[:,:self.latent_dims]
-        self.stddev = tf.nn.softplus(output[:,self.latent_dims:])+1e-6
+        mu = self.e_final_layer_mu.forward(output, 
+                                                reuse, 
+                                                is_training)
 
-        with st.value_type(st.SampleValue()):
-            Z = st.StochasticTensor(Normal(loc=self.means, scale=self.stddev))
-        
-        return Z
+        log_sigma = self.e_final_layer_sigma.forward(output, 
+                                            reuse, 
+                                            is_training)
+
+        eps= tf.random_normal(shape=tf.shape(self.latent_dims),
+                              mean=0,
+                              stddev=1,
+                              )
+
+        z = mu + tf.multiply(tf.exp(log_sigma),eps)
+
+        print('Encoder output shape', z.get_shape())
+        return z, mu, log_sigma
 
 class denseDecoder:
 
-    def __init__(self, Z, latent_dims, dim, d_sizes, name):
+    def __init__(self, Z, output_dim, d_sizes, name):
 
+        _, latent_dims=Z.get_shape().as_list()
         mi = latent_dims
-
+        print(latent_dims)
         with tf.variable_scope('decoder'+name) as scope:
 
             self.d_layers = []
@@ -2264,13 +2289,13 @@ class denseDecoder:
 
             name = 'layer_{0}'.format(count)
 
-            last_dec_layer = DenseLayer(name, mi, dim, False, 1,
-                act_f=lambda x:x, w_init=d_sizes['last_layer_weight_init']
+            last_dec_layer = DenseLayer(name, mi, output_dim, False, 1,
+                act_f=lambda x:x, w_init=d_sizes['readout_layer_w_init']
                 )
 
             self.d_layers.append(last_dec_layer)
 
-    def decode(self, Z, reuse=None, is_training=False):
+    def d_forward(self, Z, reuse=None, is_training=False):
 
         output=Z
 
@@ -2279,7 +2304,7 @@ class denseDecoder:
         
         return output
 
-class bicycleEncoder(object):
+class convEncoder(object):
 
     def __init__(self, X, e_sizes, e_name):
 
@@ -2346,7 +2371,7 @@ class bicycleEncoder(object):
                 name = 'e_last_dense_layer_sigma'
                 self.e_final_layer_sigma = DenseLayer(name, mi, latent_dims, 
                                                     False, keep_prob=1, 
-                                                    act_f=lambda x: x, w_init=w_init_last)
+                                                    act_f=tf.nn.softplus, w_init=w_init_last)
 
                 self.e_name=e_name
                 self.latent_dims=latent_dims
@@ -2437,7 +2462,7 @@ class bicycleEncoder(object):
                 name = 'e_last_dense_layer_sigma'
                 self.e_final_layer_sigma = DenseLayer(name, mi, latent_dims, 
                                                     'bn', keep_prob=1, 
-                                                    act_f=lambda x: x, w_init=w_init_last)
+                                                    act_f=tf.nn.softplus, w_init=w_init_last)
 
                 self.e_name=e_name
                 self.latent_dims=latent_dims
@@ -2477,11 +2502,16 @@ class bicycleEncoder(object):
                                                 reuse, 
                                                 is_training)
 
-            log_sigma = self.e_final_layer_sigma.forward(output, 
+            log_sigma = 0.5*self.e_final_layer_sigma.forward(output, 
                                                 reuse, 
                                                 is_training)
 
-            z = mu + tf.random_normal(shape=tf.shape(self.latent_dims))*tf.exp(log_sigma)
+            eps= tf.random_normal(shape=tf.shape(self.latent_dims),
+                                  mean=0,
+                                  stddev=1,
+                                  )
+
+            z = mu + tf.exp(log_sigma)*eps
 
             print('Encoder output shape', z.get_shape())
             return z, mu, log_sigma
@@ -2521,20 +2551,337 @@ class bicycleEncoder(object):
                                                 reuse, 
                                                 is_training)
 
-            log_sigma = self.e_final_layer_sigma.forward(output, 
+            log_sigma = 0.5*self.e_final_layer_sigma.forward(output, 
                                                 reuse, 
-                                                is_training)
+                                                is_training)+1e-6
 
-            z = mu + tf.random_normal(shape=tf.shape(self.latent_dims))*tf.exp(log_sigma)
+            eps= tf.random_normal(shape=tf.shape(self.latent_dims),
+                                  mean=0,
+                                  stddev=1,
+                                  )
+
+            z = mu + tf.sqrt(tf.exp(log_sigma))*eps
 
             print('Encoder output shape', z.get_shape())
             return z, mu, log_sigma
 
-# class convEncoder:
+class convDecoder(object):
 
-# class convDecoder:
+    def __init__(self, Z, dim_H, dim_W, d_sizes, d_name):
+        
+        self.residual=False
+        for key in d_sizes:
+            if not 'block' in key:
+                self.residual=False
+            else :
+                self.residual=True
 
-# class resEncoder:
+        #dimensions of input
+        _, latent_dims, = Z.get_shape().as_list()
 
-# class resDecoder:   
+        #dimensions of output generated images
+        dims_H =[dim_H]
+        dims_W =[dim_W]
+        mi = latent_dims
+
+        if not self.residual:
+
+            print('Convolutional architecture detected for decoder ' + d_name)
+            
+            with tf.variable_scope('decoder_'+d_name) as scope:
+                
+                #building generator dense layers
+                self.d_dense_layers = []
+                count = 0
+
+                for mo, apply_batch_norm, keep_prob, act_f, w_init in d_sizes['dense_layers']:
+                    name = 'd_dense_layer_%s' %count
+                    #print(name)
+                    count += 1
+                    layer = DenseLayer(name, mi, mo, 
+                                        apply_batch_norm, keep_prob,
+                                        act_f=act_f , w_init=w_init
+                                        )
+
+                    self.d_dense_layers.append(layer)
+                    mi = mo
+
+                #deconvolutional layers
+                #calculating the last dense layer mo 
+            
+                for _, _, stride, _, _, _, _, in reversed(d_sizes['conv_layers']):
+                    
+                    dim_H = int(np.ceil(float(dim_H)/stride))
+                    dim_W = int(np.ceil(float(dim_W)/stride))
+                    
+                    dims_H.append(dim_H)
+                    dims_W.append(dim_W)
+        
+                dims_H = list(reversed(dims_H))
+                dims_W = list(reversed(dims_W))
+                self.d_dims_H = dims_H
+                self.d_dims_W = dims_W
+                #last dense layer: projection
+                projection, bn_after_project, keep_prob, act_f, w_init = d_sizes['projection'][0]
+                
+                mo = projection*dims_H[0]*dims_W[0]
+                name = 'd_dense_layer_%s' %count
+                count+=1
+                self.d_final_layer = DenseLayer(name, mi, mo, not bn_after_project, keep_prob, act_f, w_init)
+                
+                mi = projection
+                self.d_deconv_layers=[]
+                
+                for i, (mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init) in enumerate(d_sizes['conv_layers'] , 1):
+                    name = 'd_conv_layer_%s' %count
+                    count +=1
+
+                    layer = DeconvLayer(
+                      name, mi, mo, [dims_H[i], dims_W[i]],
+                      filter_sz, stride, apply_batch_norm, keep_prob,
+                      act_f, w_init
+                    )
+
+                    self.d_deconv_layers.append(layer)
+                    mi = mo
+
+        if self.residual:
+
+            print('Residual convolutional architecture detected for generator ' + g_name)
+            with tf.variable_scope('generator_'+g_name) as scope:
+                    
+                    #dense layers
+                    self.g_dense_layers = []
+                    count = 0
+
+                    mi = latent_dims
+
+                    for mo, apply_batch_norm, keep_prob, act_f, w_init in g_sizes['dense_layers']:
+                        name = 'g_dense_layer_%s' %count
+                        count += 1
+                        
+                        layer = DenseLayer(
+                            name, mi, mo,
+                            apply_batch_norm, keep_prob,
+                            f=act_f, w_init=w_init
+                        )
+                        self.g_dense_layers.append(layer)
+                        mi = mo
+                        
+                    #checking generator architecture
+
+                    g_steps = 0
+                    for key in g_sizes:
+                        if 'deconv' in key:
+                            if not 'shortcut' in key:
+                                 g_steps+=1
+
+                    g_block_n=0
+                    g_layer_n=0
+
+                    for key in g_sizes:
+                        if 'block' and 'shortcut' in key:
+                            g_block_n+=1
+                        if 'deconv_layer' in key:
+                            g_layer_n +=1
+
+                    assert g_block_n+g_layer_n==g_steps, '\nCheck keys in g_sizes, \n sum of generator steps do not coincide with sum of convolutional layers and convolutional blocks'
+
+                    layers_output_sizes={}
+                    blocks_output_sizes={}
+
+                    #calculating the output size for each transposed convolutional step
+                    for key, item in reversed(list(g_sizes.items())):
+
+                        if 'deconv_layer' in key:
+                            
+                            _, _, stride, _, _, _, _, = g_sizes[key][0]
+                            layers_output_sizes[g_layer_n-1]= [dim_H, dim_W]
+                            
+                            dim_H = int(np.ceil(float(dim_H)/stride))
+                            dim_W = int(np.ceil(float(dim_W)/stride))
+                            dims_H.append(dim_H)
+                            dims_W.append(dim_W)
+                            
+                            g_layer_n -= 1
+
+                          
+                        if 'deconvblock_layer' in key:
+                            
+                            for _ ,_ , stride, _, _, _, _, in g_sizes[key]:
+                            
+                                dim_H = int(np.ceil(float(dim_H)/stride))
+                                dim_W = int(np.ceil(float(dim_W)/stride))
+                                dims_H.append(dim_H)
+                                dims_W.append(dim_W)
+                            
+                            blocks_output_sizes[g_block_n-1] = [[dims_H[j],dims_W[j]] for j in range(1, len(g_sizes[key])+1)]
+                            g_block_n -=1
+
+                    dims_H = list(reversed(dims_H))
+                    dims_W = list(reversed(dims_W))
+
+                    #saving for later
+                    self.g_dims_H = dims_H
+                    self.g_dims_W = dims_W
+
+                    #final dense layer
+                    projection, bn_after_project, keep_prob, act_f, w_init = g_sizes['projection'][0]
+                    
+                    mo = projection*dims_H[0]*dims_W[0]
+                    name = 'g_dense_layer_%s' %count
+                    layer = DenseLayer(name, mi, mo, not bn_after_project, keep_prob, act_f, w_init)                    
+                    self.g_dense_layers.append(layer)
+
+                    #deconvolution input channel number
+                    mi = projection
+                    self.g_blocks=[]
+
+                    block_n=0 #keep count of the block number
+                    layer_n=0 #keep count of conv layer number
+                    i=0
+                    for key in g_sizes:
+                        
+                        if 'block' and 'shortcut' in key:
+                        
+                            g_block = DeconvBlock(block_n,
+                                       mi, blocks_output_sizes, g_sizes,
+                                       )
+                            self.g_blocks.append(g_block)
+                            
+                            mo, _, _, _, _, _, _, = g_sizes['deconvblock_layer_'+str(block_n)][-1]
+                            mi = mo
+                            block_n+=1
+                            count+=1 
+                            i+=1
+                            
+                        if 'deconv_layer' in key:
+
+                            name = 'g_conv_layer_{0}'.format(layer_n)
+
+                            mo, filter_sz, stride, apply_batch_norm, keep_prob, act_f, w_init = g_sizes[key][0]
+
+                            g_conv_layer = DeconvLayer(
+                                name, mi, mo, layers_output_sizes[layer_n],
+                                filter_sz, stride, apply_batch_norm, keep_prob,
+                                act_f, w_init
+                            )
+                            self.g_blocks.append(g_conv_layer)
+
+                            mi=mo
+                            layer_n+=1
+                            count+=1 
+                            i+=1
+
+                    assert i==g_steps, 'Check convolutional layer and block building, steps in building do not coincide with g_steps'
+                    assert g_steps==block_n+layer_n, 'Check keys in g_sizes'
+
+        self.d_sizes=d_sizes
+        self.d_name = d_name
+        self.projection = projection
+        self.bn_after_project = bn_after_project
+   
+    def d_forward(self, Z, reuse=None, is_training=True):
+
+        if not self.residual:
+
+            print('Decoder_'+self.d_name)
+            print('Deconvolution')
+            #dense layers
+
+            output = Z
+            print('Input for deconvolution shape', Z.get_shape())
+            i=0
+            for layer in self.d_dense_layers:
+                output = layer.forward(output, reuse, is_training)
+                # print('After dense layer %i' %i)
+                # print('shape: ', output.get_shape())
+                i+=1
+
+            output = self.d_final_layer.forward(output, reuse, is_training)
+
+            output = tf.reshape(
+                output,
+                
+                [-1, self.d_dims_H[0], self.d_dims_W[0], self.projection]
+            
+            )
+
+            print('Reshaped output after projection', output.get_shape())
+
+            if self.bn_after_project:
+                output = tf.contrib.layers.batch_norm(
+                output,
+                decay=0.9, 
+                updates_collections=None,
+                epsilon=1e-5,
+                scale=True,
+                is_training=is_training,
+                reuse=reuse,
+                scope='bn_after_project'
+            )
+            # passing to deconv blocks
+
+            i=0
+            for layer in self.d_deconv_layers:
+                i+=1
+                output = layer.forward(output, reuse, is_training)
+                # print('After deconvolutional layer %i' %i)
+                # print('shape: ', output.get_shape())
+
+
+            print('Deconvoluted output shape', output.get_shape())
+            return output
+        else:
+
+            print('Generator_'+self.g_name)
+            print('Deconvolution')
+            #dense layers
+
+            output = Z
+            print('Input for deconvolution shape', Z.get_shape())
+            i=0
+            for layer in self.g_dense_layers:
+                i+=1
+                output = layer.forward(output, reuse, is_training)
+                #print('After dense layer %i' %i)
+                #print('shape: ', output.get_shape())
+
+            
+            output = tf.reshape(
+                output,
+                
+                [-1, self.g_dims_H[0], self.g_dims_W[0], self.projection]
+            
+            )
+
+            #print('Reshaped output after projection', output.get_shape())
+
+            if self.bn_after_project:
+                output = tf.contrib.layers.batch_norm(
+                output,
+                decay=0.9, 
+                updates_collections=None,
+                epsilon=1e-5,
+                scale=True,
+                is_training=is_training,
+                reuse=reuse,
+                scope='bn_after_project'
+            )
+            # passing to deconv blocks
+
+            
+            i=0
+            for block in self.g_blocks:
+                i+=1
+                output = block.forward(output,
+                                        reuse,
+                                        is_training)
+                #print('After deconvolutional block %i' %i)
+                #print('shape: ', output.get_shape())
+        
+
+            print('Deconvoluted output shape', output.get_shape())
+            return output
+
 

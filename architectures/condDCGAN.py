@@ -173,27 +173,25 @@ class condDCGAN(object):
             )
 
         predicted_real= tf.nn.sigmoid(logits_real)
-        predicted_real=tf.maximum(tf.minimum(predicted_real, 0.99), 0.00)
-            
         predicted_fake=tf.nn.sigmoid(logits_fake)
-        predicted_fake=tf.maximum(tf.minimum(predicted_fake, 0.99), 0.00)
+        
         #parameters list
 
         self.d_params =[t for t in tf.trainable_variables() if t.name.startswith('d')]
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         #cost building
-        
+        epsilon = 1e-3
         if cost_type == 'GAN':
 
             self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits_real,
-                labels=tf.ones_like(logits_real)
+                labels=(1-epsilon)*tf.ones_like(logits_real)
             )
             
             self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits_fake,
-                labels=tf.zeros_like(logits_fake)
+                labels=epsilon+tf.zeros_like(logits_fake)
             )
             
             self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
@@ -202,16 +200,16 @@ class condDCGAN(object):
             self.g_cost = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     logits=logits_fake,
-                    labels=tf.ones_like(logits_fake)
+                    labels=(1-epsilon)*tf.ones_like(logits_fake)
                 )
             )
             # #Discriminator cost
-            # self.d_cost_real = -tf.reduce_mean(tf.log(predicted_real))
-            # self.d_cost_fake = -tf.reduce_mean(tf.log(1 - predicted_fake))
+            # self.d_cost_real = tf.reduce_mean(-tf.log(predicted_real + epsilon))
+            # self.d_cost_fake = tf.reduce_mean(-tf.log(1 + epsilon - predicted_fake))
             # self.d_cost = self.d_cost_real+self.d_cost_fake
             
             # #Generator cost
-            # self.g_cost =tf.reduce_mean(-tf.log(predicted_fake))
+            # self.g_cost = tf.reduce_mean(-tf.log(predicted_fake + epsilon))
 
         if cost_type == 'WGAN':
 
@@ -243,23 +241,26 @@ class condDCGAN(object):
 
             self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits_real,
-                labels=tf.ones_like(logits_real)
+                labels=(1-epsilon)*tf.ones_like(logits_real)
             )
             
             self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits_fake,
-                labels=tf.zeros_like(logits_fake)
+                labels=epsilon+tf.zeros_like(logits_fake)
             )
             
             self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
             
-            # self.d_cost_real = -tf.reduce_mean(tf.log(predicted_real))
-            # self.d_cost_fake = -tf.reduce_mean(tf.log(1 - predicted_fake))
+            # #Discriminator cost
+            # self.d_cost_real = tf.reduce_mean(-tf.log(predicted_real + epsilon))
+            # self.d_cost_fake = tf.reduce_mean(-tf.log(1 + epsilon - predicted_fake))
             # self.d_cost = self.d_cost_real+self.d_cost_fake
+            
             #GENERATOR COSTS
-            #self.g_cost =tf.reduce_mean(-tf.log(predicted_fake))
-            self.g_cost=tf.sqrt(tf.reduce_sum(tf.pow(feature_output_real-feature_output_fake,2)))
-
+            
+            self.g_cost=tf.sqrt(tf.reduce_mean(tf.pow(feature_output_real-feature_output_fake,2)))
+            
+        
         self.d_train_op = tf.train.AdamOptimizer(
             learning_rate=lr,
             beta1=beta1,

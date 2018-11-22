@@ -91,11 +91,17 @@ class DVAE(object):
 		self.latent_dims=e_sizes['z']
 		#self.d_last_act_f = d_sizes['last_act_f']
 
-		self.X = tf.placeholder(
+		self.x = tf.placeholder(
 				tf.float32,
 				shape=(None, self.dim),
-				name='X'
+				name='x'
 			)
+
+		self.z_test = tf.placeholder(
+		    tf.float32,
+		    shape=(None, self.latent_dims),
+		    name='z_test'
+		)
 		    
 		self.batch_sz = tf.placeholder(
 		        tf.float32,
@@ -103,88 +109,56 @@ class DVAE(object):
 		        name='batch_sz'
 		    )
 
-		self.E = denseEncoder(self.X, e_sizes, 'A')
+		E = denseEncoder(self.x, e_sizes, 'E')
 
-		with tf.variable_scope('encoder_A') as scope:
+		with tf.variable_scope('encoder_E') as scope:
+		    z_encoded, z_mu, z_log_sigma = E.e_forward(self.x)
 
-		    self.Z = self.E.encode(self.X)
+		D = denseDecoder(z_encoded, dim, d_sizes, 'D')
 
-		self.D = denseDecoder(self.Z, self.latent_dims, dim, d_sizes, 'A')
+		with tf.variable_scope('decoder_D') as scope:
+		    sample_from_encoded = D.d_forward(z_encoded)
 
-		with tf.variable_scope('decoder_A') as scope:
+		self.x_hat=tf.sigmoid(sample_from_encoded)
 
-		    logits = self.D.decode(self.Z)
-
-
-		self.X_hat_distribution = Bernoulli(logits=logits)
-
-		# posterior predictive
-		# take samples from X_hat
-
-		with tf.variable_scope('encoder_A') as scope:
-		    scope.reuse_variables
-		    self.Z_dist = self.E.encode(
-		        self.X, reuse=True, is_training=False,
-		    )#self.X or something on purpose?                                            
-		with tf.variable_scope('decoder_A') as scope:
+		with tf.variable_scope('decoder_D') as scope:
 		    scope.reuse_variables()
-		    sample_logits = self.D.decode(
-		        self.Z_dist, reuse=True, is_training=False,
+		    self.x_hat_test = tf.nn.sigmoid(D.d_forward(
+		        self.z_test, reuse=True, is_training=False
+		        ))
+
+		#Loss:
+		#Reconstruction loss
+		#minimise the cross-entropy loss
+		# H(x, x_hat) = -\Sigma ( x*log(x_hat) + (1-x)*log(1-x_hat) )
+		epsilon=1e-6
+
+		recon_loss = -tf.reduce_sum(
+			#-tf.squared_difference(self.x,self.x_hat),
+		    self.x*tf.log(epsilon+self.x_hat) + (1-self.x)*tf.log(epsilon + 1 -self.x_hat),
+		    axis=[1]
 		    )
 
 
-		self.posterior_predictive_dist = Bernoulli(logits=sample_logits)
-		self.posterior_predictive = self.posterior_predictive_dist.sample(seed=self.seed)
-		self.posterior_predictive_probs = tf.nn.sigmoid(sample_logits)
+		self.recon_loss=tf.reduce_mean(recon_loss)
 
-		# prior predictive 
-		# take sample from a Z ~ N(0, 1)
-		# and put it through the decoder
+		#KL divergence loss
+		# Kullback Leibler divergence: measure the difference between two distributions
+		# Here we measure the divergence between the latent distribution and N(0, 1)
 
-		standard_normal = Normal(
-		  loc=np.zeros(self.latent_dims, dtype=np.float32),
-		  scale=np.ones(self.latent_dims, dtype=np.float32)
-		)
-
-		Z_std = standard_normal.sample(1, seed=self.seed)
-
-		with tf.variable_scope('decoder_A') as scope:
-		    scope.reuse_variables()
-		    logits_from_prob = self.D.decode(
-		        Z_std, reuse=True, is_training=False,
+		kl_loss= -0.5 * tf.reduce_sum(
+		    1 + 2*z_log_sigma - (tf.square(z_mu) + tf.exp(2*z_log_sigma)),
+		    axis=[1]
 		    )
 
-		prior_predictive_dist = Bernoulli(logits=logits_from_prob)
-		self.prior_predictive = prior_predictive_dist.sample()
-		self.prior_predictive_probs = tf.nn.sigmoid(logits_from_prob)
+		self.kl_loss=tf.reduce_mean(kl_loss)
 
-
-		#cost
-		kl = tf.reduce_sum(
-		    tf.contrib.distributions.kl_divergence(
-		        self.Z.distribution,
-		        standard_normal),
-		    1
-		)
-
-		# equivalent
-		# expected_log_likelihood = -tf.nn.sigmoid_cross_entropy_with_logits(
-		#   labels=self.X,
-		#   logits=posterior_predictive_logits
-		# )
-		# expected_log_likelihood = tf.reduce_sum(expected_log_likelihood, 1)
-
-		expected_log_likelihood = tf.reduce_sum(
-		      self.X_hat_distribution.log_prob(self.X),
-		      1
-		)
-
-		self.loss = tf.reduce_sum(expected_log_likelihood - kl)
+		self.total_loss=tf.reduce_mean(self.kl_loss+self.recon_loss)
 
 		self.train_op = tf.train.AdamOptimizer(
 		    learning_rate=lr,
 		    beta1=beta1,
-		).minimize(-self.loss)          
+		).minimize(self.total_loss)          
 
 
 		#saving for later
@@ -193,6 +167,10 @@ class DVAE(object):
 		self.epochs = epochs
 		self.path = path
 		self.save_sample = save_sample
+
+		self.E=E
+		self.D=D
+
 
 	def set_session(self, session):
 
@@ -222,7 +200,10 @@ class DVAE(object):
 
 		seed = self.seed
 
-		costs = []
+		total_loss = []
+		rec_losses=[]
+		kl_losses=[]
+
 		N = len(X)
 		n_batches = N // self.batch_size
 
@@ -245,31 +226,34 @@ class DVAE(object):
 			for X_batch in batches:
 
 				feed_dict = {
-					self.X: X_batch, self.batch_sz: self.batch_size
+					self.x: X_batch, self.batch_sz: self.batch_size
 				}
 
-				_, c = self.session.run(
-					(self.train_op, self.loss),
-					feed_dict=feed_dict
+				_, l, rec_loss, kl_loss = self.session.run(
+				        (self.train_op, self.total_loss, self.recon_loss, self.kl_loss),
+				        feed_dict=feed_dict
 				)
 
-				c /= self.batch_size
-				costs.append(c)
+				l /= self.batch_size
+				rec_loss /= self.batch_size
+				kl_loss /= self.batch_size
+
+				total_loss.append(l)
+				rec_losses.append(rec_loss)
+				kl_losses.append(kl_loss)
 
 				total_iters += 1
                 
 				if total_iters % self.save_sample ==0:
-					print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, c))
+					print("At iteration: %d  -  dt: %s - cost: %.2f" % (total_iters, datetime.now() - t0, l))
 					print('Saving a sample...')
 
-					probs = []
-					for i in range(64):
-						probs.append(self.prior_predictive_sample())
-						self.seed+=1
+					
+					many_samples = self.get_samples(64) 
 
 					for i in range(64):
 						plt.subplot(8,8,i+1)
-						plt.imshow(probs[i].reshape(self.img_height,self.img_width), cmap='gray')
+						plt.imshow(many_samples[i].reshape(self.img_height,self.img_width), cmap='gray')
 						plt.subplots_adjust(wspace=0.2,hspace=0.2)
 						plt.axis('off')
 
@@ -277,19 +261,45 @@ class DVAE(object):
 					fig.set_size_inches(4,4)
 					plt.savefig(self.path+'/samples_at_iter_%d.png' % total_iters,dpi=150)
 
-		plt.clf()
-		plt.plot(costs)
-		plt.ylabel('cost')
-		plt.xlabel('iteration')
-		plt.title('learning rate=' + str(self.lr))
-		plt.show()
+			plt.clf()
+			plt.subplot(1,3,1)
+			plt.suptitle('learning rate=' + str(self.lr))
+			plt.plot(total_loss, label='total_loss')
+			plt.ylabel('cost')
+			plt.legend()
+
+			plt.subplot(1,3,2)
+			plt.plot(rec_losses, label='rec loss')
+			plt.legend()
+
+			plt.subplot(1,3,3)
+			plt.plot(kl_losses, label='KL loss')
+
+			plt.xlabel('iteration')
+
+			plt.legend()
+			fig=plt.gcf()
+
+			fig.set_size_inches(10,4)
+			plt.savefig(self.path+'/cost_vs_iteration.png',dpi=150)
+			plt.clf()
 
 		print('Parameters trained')
 
-	def posterior_predictive_sample(self, X):
-		# returns a sample from p(x_new | X)
-		return self.session.run(self.posterior_predictive_probs, feed_dict={self.X: X, self.batch_sz:self.batch_size})
+	def get_samples(self, n):
 
-	def prior_predictive_sample(self):
-		# returns a sample from p(x_new | z), z ~ N(0, 1)
-		return self.session.run(self.prior_predictive_probs)
+		z_test= np.random.normal(size=(n, self.latent_dims))
+		samples = self.session.run(
+		  self.x_hat_test,
+		  feed_dict={self.z_test: z_test, self.batch_sz: n}
+		)
+		return samples
+
+	def get_sample(self):
+		z_test= np.random.normal(size=(1, self.latent_dims))
+		sample = self.session.run(
+		  self.x_hat_test,
+		  feed_dict={self.z_test: z_test, self.batch_sz: 1}
+		)
+		return sample
+	

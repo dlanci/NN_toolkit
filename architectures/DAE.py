@@ -117,7 +117,7 @@ class DAE(object):
                     logits=logits
                 )
 
-        self.loss= tf.reduce_sum(cost) #mean?           
+        self.loss= tf.reduce_mean(cost)
 
         self.train_op = tf.train.AdamOptimizer(
             learning_rate=lr,

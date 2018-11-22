@@ -166,52 +166,51 @@ class DCGAN(object):
             )
 
         predicted_real= tf.nn.sigmoid(logits_real)
-        predicted_real=tf.maximum(tf.minimum(predicted_real, 0.99), 0.00)
-            
         predicted_fake=tf.nn.sigmoid(logits_fake)
-        predicted_fake=tf.maximum(tf.minimum(predicted_fake, 0.99), 0.00)
+        
         #parameters list
 
         self.d_params =[t for t in tf.trainable_variables() if t.name.startswith('d')]
         self.g_params =[t for t in tf.trainable_variables() if t.name.startswith('g')]
         
         #cost building
-        
+        epsilon = 1e-3
         if cost_type == 'GAN':
 
-            # self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
-            #     logits=logits_real,
-            #     labels=tf.ones_like(logits_real)
-            # )
+            self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_real,
+                labels=(1-epsilon)*tf.ones_like(logits_real)
+            )
             
-            # self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
-            #     logits=logits_fake,
-            #     labels=tf.zeros_like(logits_fake)
-            # )
+            self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_fake,
+                labels=epsilon+tf.zeros_like(logits_fake)
+            )
             
-            # self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
-            
-            # #Generator cost
-            # self.g_cost = tf.reduce_mean(
-            #     tf.nn.sigmoid_cross_entropy_with_logits(
-            #         logits=logits_fake,
-            #         labels=tf.ones_like(logits_fake)
-            #     )
-            # )
-            #Discriminator cost
-            self.d_cost_real = -tf.reduce_mean(tf.log(predicted_real))
-            self.d_cost_fake = -tf.reduce_mean(tf.log(1 - predicted_fake))
-            self.d_cost = self.d_cost_real+self.d_cost_fake
+            self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
             
             #Generator cost
-            self.g_cost =tf.reduce_mean(-tf.log(predicted_fake))
+            self.g_cost = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    logits=logits_fake,
+                    labels=(1-epsilon)*tf.ones_like(logits_fake)
+                )
+            )
+            # #Discriminator cost
+            # self.d_cost_real = tf.reduce_mean(-tf.log(predicted_real + epsilon))
+            # self.d_cost_fake = tf.reduce_mean(-tf.log(1 + epsilon - predicted_fake))
+            # self.d_cost = self.d_cost_real+self.d_cost_fake
+            
+            # #Generator cost
+            # self.g_cost = tf.reduce_mean(-tf.log(predicted_fake + epsilon))
 
         if cost_type == 'WGAN-gp':
 
             self.d_cost_real= -tf.reduce_mean(logits_real)
-            self.d_cost_fake_lr_GAN =  tf.reduce_mean(logits_fake)
-            self.d_cost_GAN= self.d_cost_real+self.d_cost_fake_lr_GAN
- 
+            self.d_cost_fake =  tf.reduce_mean(logits_fake)
+
+            self.d_cost= self.d_cost_real+self.d_cost_fake
+
             epsilon= tf.random_uniform(
                     [self.batch_sz, 1, 1, 1], 
                     minval=0.,
@@ -222,21 +221,35 @@ class DCGAN(object):
 
             with tf.variable_scope('discriminator_A') as scope:
                 scope.reuse_variables()
-                disc_interpolates = D.d_forward(interpolates,reuse = True)
+                disc_interpolated = D.d_forward(interpolated,reuse = True)
 
-            gradients = tf.gradients(disc_interpolates,[interpolated])[0]
+            gradients = tf.gradients(disc_interpolated,[interpolated])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-            gradient_penalty = tf.reduce_mean((slopes-1)**2)
+            gradient_penalty = tf.reduce_mean((slopes-1.)**2)
             self.d_cost+=10*gradient_penalty
+
+            self.g_cost= -self.d_cost_fake
 
         if cost_type == 'FEATURE':
 
-            self.d_cost_real = -tf.reduce_mean(tf.log(predicted_real))
-            self.d_cost_fake = -tf.reduce_mean(tf.log(1 - predicted_fake))
-            self.d_cost = self.d_cost_real+self.d_cost_fake
+            self.d_cost_real = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_real,
+                labels=(1-epsilon)*tf.ones_like(logits_real)
+            )
+            
+            self.d_cost_fake = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits_fake,
+                labels=epsilon+tf.zeros_like(logits_fake)
+            )
+            
+            self.d_cost = tf.reduce_mean(self.d_cost_real) + tf.reduce_mean(self.d_cost_fake)
+            
+            # #Discriminator cost
+            # self.d_cost_real = tf.reduce_mean(-tf.log(predicted_real + epsilon))
+            # self.d_cost_fake = tf.reduce_mean(-tf.log(1 + epsilon - predicted_fake))
+            # self.d_cost = self.d_cost_real+self.d_cost_fake
             #GENERATOR COSTS
-            #self.g_cost =tf.reduce_mean(-tf.log(predicted_fake))
-            self.g_cost=0.01*tf.sqrt(tf.reduce_sum(tf.pow(feature_output_real-feature_output_fake,2)))
+            self.g_cost=tf.sqrt(tf.reduce_mean(tf.pow(feature_output_real-feature_output_fake,2)))
 
         self.d_train_op = tf.train.AdamOptimizer(
             learning_rate=lr,
@@ -255,8 +268,8 @@ class DCGAN(object):
             )
         #Measure accuracy of the discriminator
 
-        real_predictions = tf.cast(predicted_real>0,tf.float32)
-        fake_predictions = tf.cast(predicted_fake<0,tf.float32)
+        real_predictions = tf.cast(predicted_real>0.5,tf.float32)
+        fake_predictions = tf.cast(predicted_fake<0.5,tf.float32)
         
         num_predictions=2.0*batch_size
         num_correct = tf.reduce_sum(real_predictions)+tf.reduce_sum(fake_predictions)
@@ -366,7 +379,7 @@ class DCGAN(object):
                     Z = np.random.uniform(-1,1, size=(16,self.latent_dims))
                     
                     samples = self.sample(Z)#shape is (64,D,D,color)
-                    samples = denormalise(samples, self.min_reco, self.max_reco)
+                    #samples = denormalise(samples, self.min_reco, self.max_reco)
                     
                     w = self.n_W
                     h = self.n_H

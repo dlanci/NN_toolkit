@@ -191,29 +191,17 @@ class resCNN(object):
             for key in conv_sizes:
                 
                 if 'block' and 'shortcut' in key:
-                    if block_n>0:
-                        conv_block = ConvBlock(block_n,
-                                   mi, conv_sizes,
-                                   )
-                        self.conv_blocks.append(conv_block)
-                        
-                        mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
-                        mi = mo
-                        dim_H = conv_block.output_dim(dim_H)
-                        dim_W = conv_block.output_dim(dim_W)
-                        block_n+=1
 
-                    else:
-                        conv_block = ConvBlock(block_n,
-                                   mi, conv_sizes,
-                                   )
-                        self.conv_blocks.append(conv_block)
-                        
-                        mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
-                        mi = mo
-                        dim_H = conv_block.output_dim(dim_H)
-                        dim_W = conv_block.output_dim(dim_W)
-                        block_n+=1
+                    conv_block = ConvBlock(block_n,
+                               mi, conv_sizes,
+                               )
+                    self.conv_blocks.append(conv_block)
+                    
+                    mo, _, _, _, _, _, _, = conv_sizes['convblock_layer_'+str(block_n)][-1]
+                    mi = mo
+                    dim_H = conv_block.output_dim(dim_H)
+                    dim_W = conv_block.output_dim(dim_W)
+                    block_n+=1
 
                 if 'conv_layer' in key:
 
@@ -442,7 +430,7 @@ class resCNN(object):
 
         #get samples at test time
     
-    def predicted_Y_hat(self, X):
+    def predict(self, X):
         pred = tf.nn.softmax(self.Y_hat_from_test)
         output = self.session.run(
             pred, 
